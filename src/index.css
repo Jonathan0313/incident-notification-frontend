@@ -56,10 +56,12 @@ body {
 }
 
 /* Contenedor General de Vistas */
+/* Contenedor General de Vistas */
 .main-content {
-  padding: 40px 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 20px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Layout Maestro-Detalle (Grid de 2 columnas) */
