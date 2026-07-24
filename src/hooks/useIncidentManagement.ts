@@ -275,6 +275,36 @@ const handleCopyTemplate = async () => {
     }
   };
 
+  // Función corregida para replicar la hora de inicio del primer servicio
+  const handleApplyFirstStartTime = () => {
+    if (!formData) return;
+    const services = (formData as any).affectedServices || [];
+    if (services.length === 0) return;
+    
+    const firstStartTime = services[0].startTime || '';
+    const updatedServices = services.map((srv: any) => ({
+      ...srv,
+      startTime: firstStartTime
+    }));
+    
+    setFormData({ ...formData, affectedServices: updatedServices } as any);
+  };
+
+  // Función corregida para replicar la hora de fin del primer servicio
+  const handleApplyFirstEndTime = () => {
+    if (!formData) return;
+    const services = (formData as any).affectedServices || [];
+    if (services.length === 0) return;
+    
+    const firstEndTime = services[0].endTime || '';
+    const updatedServices = services.map((srv: any) => ({
+      ...srv,
+      endTime: firstEndTime
+    }));
+    
+    setFormData({ ...formData, affectedServices: updatedServices } as any);
+  };
+
   return {
     incidents,
     selectedIncident,
@@ -293,6 +323,8 @@ const handleCopyTemplate = async () => {
     handleCloseIncident,
     getIconForAffectation,
     validateDateFormat,
-    handleCopyTemplate
+    handleCopyTemplate,
+    handleApplyFirstStartTime, // <-- Agregado
+    handleApplyFirstEndTime,
   };
 }
