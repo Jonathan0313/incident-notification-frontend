@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { axiosClient } from '../../services/axiosClient';
+import { axiosClient } from '../services/axiosClient';
 
 // Definición de la interfaz basada en tu JSON
 export interface Service {
@@ -43,11 +43,11 @@ export default function ServiceManagementPage() {
     setSelectedService(null);
   };
 
-  // 1. LISTAR / BUSCAR TODOS (GET /services/all)
+  // 1. LISTAR / BUSCAR TODOS (GET /v1/api/services/all)
   const fetchAllServices = async () => {
     try {
       setLoading(true);
-      const response = await axiosClient.get<Service[]>('/services/all'); 
+      const response = await axiosClient.get<Service[]>('/v1/api/services/all'); 
       setServices(response.data);
       setSearchCode(''); // Limpia el input de búsqueda al recargar todos
     } catch (error) {
@@ -57,7 +57,7 @@ export default function ServiceManagementPage() {
     }
   };
 
-  // 2. BUSCAR POR CÓDIGO (GET /services/{code})
+  // 2. BUSCAR POR CÓDIGO (GET /v1/api/services/{code})
   const handleSearchByCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchCode.trim()) {
@@ -67,8 +67,7 @@ export default function ServiceManagementPage() {
 
     try {
       setLoading(true);
-      const response = await axiosClient.get<Service>(`/services/${searchCode.trim()}`);
-      // Como la búsqueda por código suele retornar un solo objeto, lo metemos en un arreglo para que la tabla lo pinte
+      const response = await axiosClient.get<Service>(`/v1/api/services/${searchCode.trim()}`);
       setServices(response.data ? [response.data] : []);
     } catch (error) {
       console.error('No se encontró el servicio:', error);
@@ -78,17 +77,17 @@ export default function ServiceManagementPage() {
     }
   };
 
-  // 3. CREAR (POST /services) O MODIFICAR (PUT /services/{code})
+  // 3. CREAR (POST /v1/api/services) O MODIFICAR (PUT /v1/api/services/{code})
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (selectedService) {
-        // MODIFICAR (PUT /services/{code})
-        await axiosClient.put(`/services/${formData.code}`, formData);
+        // MODIFICAR (PUT /v1/api/services/{code})
+        await axiosClient.put(`/v1/api/services/${formData.code}`, formData);
         alert('Servicio actualizado con éxito');
       } else {
-        // CREAR (POST /services)
-        await axiosClient.post('/services', formData);
+        // CREAR (POST /v1/api/services)
+        await axiosClient.post('/v1/api/services', formData);
         alert('Servicio creado con éxito');
       }
       fetchAllServices();
