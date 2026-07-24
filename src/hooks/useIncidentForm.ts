@@ -2,64 +2,37 @@ import { useState, useEffect } from 'react';
 import type { Incident } from '../domain/incident';
 import type { Service } from '../domain/service';
 import { incidentService } from '../services/incidentService';
+import { getIconForAffectation, normalizeAffectationType, validateDateFormat } from '../utils/incidentHelpers';
 
-export function useIncidentManagement() {
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+export function useIncidentForm(selectedIncident: Incident | null, onIncidentSaved: () => void) {
   const [isCreating, setIsCreating] = useState(false);
-  const [loading, setLoading] = useState<boolean>(true);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [formData, setFormData] = useState<Incident | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetchOpenIncidents();
     fetchAvailableServices();
   }, []);
-
-  const fetchOpenIncidents = async () => {
-    try {
-      setLoading(true);
-      const data = await incidentService.getOpenIncidents();
-      setIncidents(data);
-      if (data.length > 0 && !selectedIncident && !isCreating) {
-        setSelectedIncident(data[0]);
-      } else if (data.length === 0) {
-        setSelectedIncident(null);
-        setFormData(null);
-      }
-    } catch (error) {
-      console.error('Error al cargar los incidentes abiertos:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchAvailableServices = async () => {
     try {
       const data = await incidentService.getAvailableServices();
-      setAvailableServices(data);
+      
+      // Tipamos 'a' y 'b' como Service
+      const sortedServices = data.sort((a: Service, b: Service) => {
+        const nameA = a.name?.toLowerCase() || '';
+        const nameB = b.name?.toLowerCase() || '';
+        return nameA.localeCompare(nameB);
+      });
+
+      setAvailableServices(sortedServices);
     } catch (error) {
       console.error('Error al cargar la lista de servicios:', error);
     }
   };
 
-  const getIconForAffectation = (type: string) => {
-    const normalized = (type || '').trim().toLowerCase();
-    if (normalized === 'total' || normalized === '❌') return '❌';
-    if (normalized === 'parcial' || normalized === '⚠️') return '⚠️';
-    return '✅';
-  };
-
-  const normalizeAffectationType = (type: string) => {
-    const normalized = (type || '').trim().toLowerCase();
-    if (normalized === 'total' || normalized === '❌') return 'Total';
-    if (normalized === 'parcial' || normalized === '⚠️') return 'Parcial';
-    return 'OK';
-  };
-  
   useEffect(() => {
-    if (selectedIncident) {
+    if (selectedIncident && !isCreating) {
       const mappedServices = ((selectedIncident as any).affectedServices || []).map((srv: any) => {
         const rawType = srv.affectationType || srv.status || 'OK';
         const cleanType = normalizeAffectationType(rawType);
@@ -83,11 +56,10 @@ export function useIncidentManagement() {
       } as any);
       setErrors({});
     }
-  }, [selectedIncident]);
+  }, [selectedIncident, isCreating]);
 
   const handleStartCreate = () => {
     setIsCreating(true);
-    setSelectedIncident(null);
     setErrors({});
     setFormData({
       id: '' as any,
@@ -102,11 +74,6 @@ export function useIncidentManagement() {
       comments: [],
       affectedServices: []
     } as any);
-  };
-
-  const validateDateFormat = (dateStr: string): boolean => {
-    const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4} ([01][0-9]|2[0-3]):([0-5][0-9])$/;
-    return regex.test(dateStr);
   };
 
   const validateForm = (): boolean => {
@@ -153,13 +120,11 @@ export function useIncidentManagement() {
         await incidentService.createIncident(formData!);
         alert('Nuevo incidente creado exitosamente.');
         setIsCreating(false);
-        fetchOpenIncidents();
       } else {
         await incidentService.updateIncident(formData!.id, formData!);
         alert('Cambios guardados exitosamente.');
-        setSelectedIncident(formData);
-        fetchOpenIncidents();
       }
+      onIncidentSaved();
     } catch (error) {
       console.error('Error al guardar el incidente:', error);
       alert('Ocurrió un error al guardar en el servidor.');
@@ -188,16 +153,15 @@ export function useIncidentManagement() {
       await incidentService.closeIncident(dataToClose.id, dataToClose);
       alert('Incidente cerrado exitosamente con todos sus servicios en OK.');
       setIsCreating(false);
-      setSelectedIncident(null);
       setFormData(null);
-      fetchOpenIncidents();
+      onIncidentSaved();
     } catch (error) {
       console.error('Error al cerrar el incidente:', error);
       alert('Ocurrió un error al intentar cerrar la notificación.');
     }
   };
 
-const handleCopyTemplate = async () => {
+  const handleCopyTemplate = async () => {
     if (!formData) return;
 
     const servicesRows = ((formData as any).affectedServices || [])
@@ -268,14 +232,12 @@ const handleCopyTemplate = async () => {
         'text/plain': new Blob([plainText], { type: 'text/plain' })
       });
       await navigator.clipboard.write([clipboardItem]);
-      //alert('¡Plantilla copiada con éxito!');
     } catch (err) {
       console.error('Error al copiar con formato:', err);
       alert('No se pudo copiar al portapapeles.');
     }
   };
 
-  // Función corregida para replicar la hora de inicio del primer servicio
   const handleApplyFirstStartTime = () => {
     if (!formData) return;
     const services = (formData as any).affectedServices || [];
@@ -290,7 +252,6 @@ const handleCopyTemplate = async () => {
     setFormData({ ...formData, affectedServices: updatedServices } as any);
   };
 
-  // Función corregida para replicar la hora de fin del primer servicio
   const handleApplyFirstEndTime = () => {
     if (!formData) return;
     const services = (formData as any).affectedServices || [];
@@ -306,25 +267,18 @@ const handleCopyTemplate = async () => {
   };
 
   return {
-    incidents,
-    selectedIncident,
     isCreating,
-    loading,
     availableServices,
     formData,
     errors,
-    setSelectedIncident,
     setIsCreating,
     setFormData,
     setErrors,
-    fetchOpenIncidents,
     handleStartCreate,
     handleSaveAction,
     handleCloseIncident,
-    getIconForAffectation,
-    validateDateFormat,
     handleCopyTemplate,
-    handleApplyFirstStartTime, // <-- Agregado
+    handleApplyFirstStartTime,
     handleApplyFirstEndTime,
   };
 }

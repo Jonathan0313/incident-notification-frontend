@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import IncidentManagementPage from './pages/incident/components/IncidentManagementPage';
+import IncidentManagementPage from './pages/incident/IncidentManagementPage';
 import ServiceManagementPage from './pages/ServiceManagementPage'; // O ajusta según la ubicación correcta de tu ServiceManagementPage
 import './index.css';
 
