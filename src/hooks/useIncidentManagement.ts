@@ -57,7 +57,7 @@ export function useIncidentManagement() {
     if (normalized === 'parcial' || normalized === '⚠️') return 'Parcial';
     return 'OK';
   };
-
+  
   useEffect(() => {
     if (selectedIncident) {
       const mappedServices = ((selectedIncident as any).affectedServices || []).map((srv: any) => {
@@ -197,6 +197,84 @@ export function useIncidentManagement() {
     }
   };
 
+const handleCopyTemplate = async () => {
+    if (!formData) return;
+
+    const servicesRows = ((formData as any).affectedServices || [])
+      .map((srv: any) => {
+        const icon = srv.status || getIconForAffectation(srv.affectationType);
+        const name = srv.nameService || 'Sin servicio';
+        const type = srv.affectationType || 'OK';
+        const start = srv.startTime || 'N/A';
+        const end = srv.endTime || '';
+        return `
+          <tr>
+            <td style="border: 1px solid #d1d5db; padding: 12px 10px; text-align: center; vertical-align: middle;">
+              <span style="display: inline-block; text-align: center; width: 100%;">${icon.trim()}</span>
+            </td>
+            <td style="border: 1px solid #d1d5db; padding: 12px 10px; vertical-align: middle; text-align: left;">${name}</td>
+            <td style="border: 1px solid #d1d5db; padding: 12px 10px; vertical-align: middle; text-align: left;">${type}</td>
+            <td style="border: 1px solid #d1d5db; padding: 12px 10px; vertical-align: middle; text-align: left;">${start}</td>
+            <td style="border: 1px solid #d1d5db; padding: 12px 10px; vertical-align: middle; text-align: left;">${end}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const commentsHtml = (formData.comments || [])
+      .map((comment: any, idx: number) => {
+        const text = comment?.content || comment?.text || '';
+        return text ? `<li><b>Avance ${idx + 1}:</b> ${text}</li>` : '';
+      })
+      .filter(Boolean)
+      .join('');
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; font-size: 14px; color: #111827;">
+        <p style="font-weight: bold; margin-bottom: 5px;">Servicios Afectados:</p>
+        <table style="border-collapse: collapse; width: 100%; margin-bottom: 15px; font-size: 13px;">
+          <thead>
+            <tr style="background-color: #f3f4f6;">
+              <th style="border: 1px solid #d1d5db; padding: 10px; text-align: center; vertical-align: middle; width: 80px;">ESTADO</th>
+              <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left; vertical-align: middle;">SERVICIO</th>
+              <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left; vertical-align: middle;">TIPO DE AFECTACIÓN</th>
+              <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left; vertical-align: middle;">HORA INICIO</th>
+              <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left; vertical-align: middle;">HORA FIN</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${servicesRows || '<tr><td colspan="5" style="border: 1px solid #d1d5db; padding: 10px; text-align: center;">Ninguno</td></tr>'}
+          </tbody>
+        </table>
+
+        <p><b>Impacto A Usuarios:</b> ${formData.impact}</p>
+        <p><b>Funcionalidades OK:</b> ${(formData as any).functionality}</p>
+        <p><b>Jira:</b> ${formData.jira}</p>
+        ${formData.partnerCase?.trim() ? `<p><b>Caso Aliado:</b> ${formData.partnerCase}</p>` : ''}
+        <p><b>Componente Afectado:</b> ${(formData as any).affectedComponent}</p>
+        <p><b>Descripción de la falla:</b> ${formData.description}</p>
+
+        ${commentsHtml ? `<ul style="padding-left: 20px; margin: 15px 0;">${commentsHtml}</ul>` : ''}
+
+        ${formData.resolution?.trim() ? `<p style="margin-top: 15px;">✅ <b>Solución:</b> ${formData.resolution}</p>` : ''}
+      </div>
+    `;
+
+    const plainText = `Servicios Afectados:\n[Tabla de servicios]\n\nImpacto A Usuarios: ${formData.impact}\nFuncionalidades OK: ${(formData as any).functionality}\nJira: ${formData.jira}\nDescripción de la falla: ${formData.description}`;
+
+    try {
+      const clipboardItem = new ClipboardItem({
+        'text/html': new Blob([htmlContent], { type: 'text/html' }),
+        'text/plain': new Blob([plainText], { type: 'text/plain' })
+      });
+      await navigator.clipboard.write([clipboardItem]);
+      //alert('¡Plantilla copiada con éxito!');
+    } catch (err) {
+      console.error('Error al copiar con formato:', err);
+      alert('No se pudo copiar al portapapeles.');
+    }
+  };
+
   return {
     incidents,
     selectedIncident,
@@ -214,6 +292,7 @@ export function useIncidentManagement() {
     handleSaveAction,
     handleCloseIncident,
     getIconForAffectation,
-    validateDateFormat
+    validateDateFormat,
+    handleCopyTemplate
   };
 }
