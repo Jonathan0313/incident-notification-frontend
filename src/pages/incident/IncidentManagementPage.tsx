@@ -10,8 +10,10 @@ export default function IncidentManagementPage() {
     incidents,
     selectedIncident,
     loading,
+    filterType,
+    setFilterType,
     setSelectedIncident,
-    fetchOpenIncidents,
+    refreshCurrentList,
   } = useIncidentList();
 
   const {
@@ -28,7 +30,7 @@ export default function IncidentManagementPage() {
     handleCopyTemplate,
     handleApplyFirstStartTime,
     handleApplyFirstEndTime,
-  } = useIncidentForm(selectedIncident, fetchOpenIncidents);
+  } = useIncidentForm(selectedIncident, refreshCurrentList);
 
   // Funciones de manipulación de tablas y comentarios que alimentan el form...
   const handleAddAffectedService = () => {
@@ -91,8 +93,10 @@ export default function IncidentManagementPage() {
         selectedIncident={selectedIncident}
         isCreating={isCreating}
         loading={loading}
+        filterType={filterType}
         onSelectIncident={(inc) => { setSelectedIncident(inc); setIsCreating(false); }}
         onStartCreate={handleStartCreate}
+        onFilterChange={setFilterType}
       />
 
       <div style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: '8px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowY: 'auto' }}>
