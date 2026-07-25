@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Incident } from '../domain/incident';
 import type { Service } from '../domain/service';
 import { incidentService } from '../services/incidentService';
-import { getIconForAffectation, normalizeAffectationType, validateDateFormat } from '../utils/incidentHelpers';
+import { getIconForAffectation, normalizeAffectationType, validateDateFormat, getCurrentFormattedDate } from '../utils/incidentHelpers';
 
 export function useIncidentForm(selectedIncident: Incident | null, onIncidentSaved: () => void) {
   const [isCreating, setIsCreating] = useState(false);
@@ -29,6 +29,55 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     } catch (error) {
       console.error('Error al cargar la lista de servicios:', error);
     }
+  };
+
+  const handleSetCurrentStartTimeFirstService = () => {
+    if (!formData) return;
+    const services = (formData as any).affectedServices || [];
+    if (services.length === 0) return;
+
+    const currentDateTime = getCurrentFormattedDate();
+    const updatedServices = services.map((srv: any, index: number) => {
+      if (index === 0) {
+        return { ...srv, startTime: currentDateTime };
+      }
+      return srv;
+    });
+
+    setFormData({ ...formData, affectedServices: updatedServices } as any);
+  };
+
+  const handleSetCurrentEndTimeFirstService = () => {
+    if (!formData) return;
+    const services = (formData as any).affectedServices || [];
+    if (services.length === 0) return;
+
+    const currentDateTime = getCurrentFormattedDate();
+    const updatedServices = services.map((srv: any, index: number) => {
+      if (index === 0) {
+        return { ...srv, endTime: currentDateTime };
+      }
+      return srv;
+    });
+
+    setFormData({ ...formData, affectedServices: updatedServices } as any);
+  };
+
+  const handleApplyFirstAffectationType = () => {
+    if (!formData) return;
+    const services = (formData as any).affectedServices || [];
+    if (services.length === 0) return;
+    
+    const firstAffectationType = services[0].affectationType || 'OK';
+    const firstIcon = getIconForAffectation(firstAffectationType);
+
+    const updatedServices = services.map((srv: any) => ({
+      ...srv,
+      affectationType: firstAffectationType,
+      status: firstIcon
+    }));
+    
+    setFormData({ ...formData, affectedServices: updatedServices } as any);
   };
 
   useEffect(() => {
@@ -280,5 +329,8 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     handleCopyTemplate,
     handleApplyFirstStartTime,
     handleApplyFirstEndTime,
+    handleApplyFirstAffectationType,
+    handleSetCurrentStartTimeFirstService,
+    handleSetCurrentEndTimeFirstService,
   };
 }

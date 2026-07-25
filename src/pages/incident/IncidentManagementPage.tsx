@@ -30,6 +30,9 @@ export default function IncidentManagementPage() {
     handleCopyTemplate,
     handleApplyFirstStartTime,
     handleApplyFirstEndTime,
+    handleApplyFirstAffectationType,
+    handleSetCurrentStartTimeFirstService,
+    handleSetCurrentEndTimeFirstService,
   } = useIncidentForm(selectedIncident, refreshCurrentList);
 
   // Funciones de manipulación de tablas y comentarios que alimentan el form...
@@ -223,6 +226,9 @@ export default function IncidentManagementPage() {
         onCopyTemplate={handleCopyTemplate}
         onApplyFirstStartTime={handleApplyFirstStartTime}
         onApplyFirstEndTime={handleApplyFirstEndTime}
+        onApplyFirstAffectationType={handleApplyFirstAffectationType}
+        onSetCurrentStartTimeFirst={handleSetCurrentStartTimeFirstService}
+        onSetCurrentEndTimeFirst={handleSetCurrentEndTimeFirstService}
       />
 
     </div>
