@@ -26,7 +26,7 @@ export const incidentService = {
   },
 
   getRecentClosedIncidents: async () => {
-    const response = await axiosClient.get('/incidents/closed/recent'); // Ajusta tu endpoint real
+    const response = await axiosClient.get('/v1/api/notifications/closed/recent'); // Ajusta tu endpoint real
     return response.data;
   },
 };
