@@ -144,7 +144,7 @@ export default function IncidentManagementPage() {
                 </tr>
                 <tr>
                   <td style={{ paddingBottom: '12px' }}>
-                    <strong>Funcionalidades: *</strong><br />
+                    <strong>Funcionalidades Ok: *</strong><br />
                     <input type="text" value={(formData as any).functionality || ''} onChange={(e) => setFormData({...formData, functionality: e.target.value} as any)} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
                   </td>
                 </tr>
