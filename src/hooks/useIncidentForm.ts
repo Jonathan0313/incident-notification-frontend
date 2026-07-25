@@ -18,7 +18,6 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     try {
       const data = await incidentService.getAvailableServices();
       
-      // Tipamos 'a' y 'b' como Service
       const sortedServices = data.sort((a: Service, b: Service) => {
         const nameA = a.name?.toLowerCase() || '';
         const nameB = b.name?.toLowerCase() || '';
@@ -114,7 +113,7 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
       id: '' as any,
       name: '',
       impact: '',
-      functionality: '',
+      functionality: 'Ok',
       jira: '',
       partnerCase: '',
       affectedComponent: 'En investigación',
@@ -213,6 +212,13 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
   const handleCopyTemplate = async () => {
     if (!formData) return;
 
+    // Procesamiento seguro del link de Jira
+    const rawJiraInput = formData.jira || '';
+    const ticketCode = rawJiraInput.includes('/') ? rawJiraInput.split('/').pop() : rawJiraInput;
+    const fullJiraUrl = rawJiraInput.startsWith('http') 
+      ? rawJiraInput 
+      : `https://tu-empresa.atlassian.net/browse/${ticketCode}`;
+
     const servicesRows = ((formData as any).affectedServices || [])
       .map((srv: any) => {
         const icon = srv.status || getIconForAffectation(srv.affectationType);
@@ -261,19 +267,18 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
         </table>
 
         <p><b>Impacto A Usuarios:</b> ${formData.impact}</p>
-        <p><b>Funcionalidades OK:</b> ${(formData as any).functionality}</p>
-        <p><b>Jira:</b> ${formData.jira}</p>
+        <p><b>Jira:</b> <a href="${fullJiraUrl}" target="_blank" rel="noopener noreferrer">${ticketCode}</a></p>
         ${formData.partnerCase?.trim() ? `<p><b>Caso Aliado:</b> ${formData.partnerCase}</p>` : ''}
         <p><b>Componente Afectado:</b> ${(formData as any).affectedComponent}</p>
         <p><b>Descripción de la falla:</b> ${formData.description}</p>
 
         ${commentsHtml ? `<ul style="padding-left: 20px; margin: 15px 0;">${commentsHtml}</ul>` : ''}
 
-        ${formData.resolution?.trim() ? `<p style="margin-top: 15px;">✅ <b>Solución:</b> ${formData.resolution}</p>` : ''}
+        ${formData.resolution?.trim() ? `<p style="margin-top: 15px;"><b>Solución:</b> ${formData.resolution}</p>` : ''}
       </div>
     `;
 
-    const plainText = `Servicios Afectados:\n[Tabla de servicios]\n\nImpacto A Usuarios: ${formData.impact}\nFuncionalidades OK: ${(formData as any).functionality}\nJira: ${formData.jira}\nDescripción de la falla: ${formData.description}`;
+    const plainText = `Servicios Afectados:\n[Tabla de servicios]\n\nImpacto A Usuarios: ${formData.impact}\nJira: ${ticketCode} (${fullJiraUrl})\nDescripción de la falla: ${formData.description}`;
 
     try {
       const clipboardItem = new ClipboardItem({
@@ -281,6 +286,7 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
         'text/plain': new Blob([plainText], { type: 'text/plain' })
       });
       await navigator.clipboard.write([clipboardItem]);
+      alert('¡Plantilla copiada al portapapeles exitosamente!');
     } catch (err) {
       console.error('Error al copiar con formato:', err);
       alert('No se pudo copiar al portapapeles.');

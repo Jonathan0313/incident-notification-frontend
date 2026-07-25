@@ -1,4 +1,4 @@
-import { useServiceManagement } from '../../hooks/useServiceManagement';
+import { useServiceManagement } from '../../../hooks/useServiceManagement';
 
 export default function ServiceManagementPage() {
   const {
