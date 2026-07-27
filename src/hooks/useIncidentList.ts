@@ -25,14 +25,26 @@ export function useIncidentList() {
         data = await incidentService.getRecentClosedIncidents();
       }
 
+      // Ordenamiento base por ID descendiente
+      data.sort((a, b) => Number(b.id) - Number(a.id));
+
+      // 🟢 TRUCO CLAVE: Si hay un incidente seleccionado actualmente, 
+      // lo sacamos de la lista y lo ponemos obligatoriamente de primero para que no baje de posición.
+      if (selectedIncident) {
+        const currentId = selectedIncident.id;
+        const index = data.findIndex(inc => inc.id === currentId);
+        if (index !== -1) {
+          const [foundItem] = data.splice(index, 1);
+          data.unshift(foundItem); // Lo coloca siempre en la cima visual de la lista izquierda
+        }
+      }
+
       setIncidents(data);
 
       if (data.length > 0) {
-        // 🟢 Conservar el incidente seleccionado actualmente si existe en la nueva lista recargada
         if (selectedIncident) {
           const currentId = selectedIncident.id;
           const found = data.find(inc => inc.id === currentId);
-          // Si lo encuentra, mantiene el enfoque; si no (por ejemplo, si es un registro recién creado), selecciona el primero
           setSelectedIncident(found || data[0]);
         } else {
           setSelectedIncident(data[0]);
