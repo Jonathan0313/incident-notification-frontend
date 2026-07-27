@@ -189,12 +189,14 @@ export default function IncidentManagementPage() {
                     <input type="text" value={formData.impact || ''} onChange={(e) => setFormData({...formData, impact: e.target.value})} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
                   </td>
                 </tr>
+                {/* 
                 <tr>
                   <td style={{ paddingBottom: '12px' }}>
                     <strong>Funcionalidades Ok: *</strong><br />
                     <input type="text" value={(formData as any).functionality || ''} onChange={(e) => setFormData({...formData, functionality: e.target.value} as any)} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
                   </td>
                 </tr>
+                */}
                 <tr>
                   <td style={{ paddingBottom: '12px' }}>
                     <strong>Componentes Afectados: *</strong><br />
