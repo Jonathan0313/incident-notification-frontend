@@ -7,7 +7,7 @@ export function useIncidentList() {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   
-  // Nuevo estado para controlar el filtro actual ('open' o 'closed_recent')
+  // Estado para controlar el filtro actual ('open' o 'closed_recent')
   const [filterType, setFilterType] = useState<'open' | 'closed_recent'>('open');
 
   useEffect(() => {
@@ -26,8 +26,17 @@ export function useIncidentList() {
       }
 
       setIncidents(data);
+
       if (data.length > 0) {
-        setSelectedIncident(data[0]);
+        // 🟢 Conservar el incidente seleccionado actualmente si existe en la nueva lista recargada
+        if (selectedIncident) {
+          const currentId = selectedIncident.id;
+          const found = data.find(inc => inc.id === currentId);
+          // Si lo encuentra, mantiene el enfoque; si no (por ejemplo, si es un registro recién creado), selecciona el primero
+          setSelectedIncident(found || data[0]);
+        } else {
+          setSelectedIncident(data[0]);
+        }
       } else {
         setSelectedIncident(null);
       }

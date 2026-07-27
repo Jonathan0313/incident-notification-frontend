@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Incident } from '../domain/incident';
 import type { Service } from '../domain/service';
 import { incidentService } from '../services/incidentService';
@@ -9,6 +9,9 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [formData, setFormData] = useState<Incident | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
     fetchAvailableServices();
@@ -81,6 +84,7 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
 
   useEffect(() => {
     if (selectedIncident && !isCreating) {
+      isInitialMount.current = true;
       const mappedServices = ((selectedIncident as any).affectedServices || []).map((srv: any) => {
         const rawType = srv.affectationType || srv.status || 'OK';
         const cleanType = normalizeAffectationType(rawType);
@@ -106,8 +110,32 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     }
   }, [selectedIncident, isCreating]);
 
+  useEffect(() => {
+    if (!formData || isCreating || !formData.id) return;
+
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsSaving(true);
+        await incidentService.updateIncident(formData.id, formData);
+        onIncidentSaved();
+      } catch (error) {
+        console.error('Error en el autoguardado:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [formData]);
+
   const handleStartCreate = () => {
     setIsCreating(true);
+    isInitialMount.current = false;
     setErrors({});
     setFormData({
       id: '' as any,
@@ -162,31 +190,28 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
   };
 
   const handleSaveAction = async () => {
-    if (!validateForm()) return;
-    try {
-      if (isCreating) {
-        await incidentService.createIncident(formData!);
-        alert('Nuevo incidente creado exitosamente.');
-        setIsCreating(false);
-      } else {
-        await incidentService.updateIncident(formData!.id, formData!);
-        alert('Cambios guardados exitosamente.');
-      }
-      onIncidentSaved();
-    } catch (error) {
-      console.error('Error al guardar el incidente:', error);
-      alert('Ocurrió un error al guardar en el servidor.');
+    if (!validateForm()) {
+      throw new Error("Por favor corrige los errores del formulario.");
     }
+    
+    if (isCreating) {
+      await incidentService.createIncident(formData!);
+      setIsCreating(false);
+    } else {
+      await incidentService.updateIncident(formData!.id, formData!);
+    }
+    onIncidentSaved();
   };
 
   const handleCloseIncident = async () => {
     if (!formData) return;
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      throw new Error("Por favor corrige los errores del formulario.");
+    }
 
     if (!formData.resolution || !formData.resolution.trim()) {
       setErrors((prev) => ({ ...prev, resolution: 'El campo Solución es obligatorio para cerrar la notificación.' }));
-      alert('Debe registrar la solución antes de cerrar el incidente.');
-      return;
+      throw new Error("Debe registrar la solución antes de cerrar el incidente.");
     }
 
     const updatedServices = ((formData as any).affectedServices || []).map((srv: any) => ({
@@ -197,22 +222,15 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
 
     const dataToClose = { ...formData, affectedServices: updatedServices };
 
-    try {
-      await incidentService.closeIncident(dataToClose.id, dataToClose);
-      alert('Incidente cerrado exitosamente con todos sus servicios en OK.');
-      setIsCreating(false);
-      setFormData(null);
-      onIncidentSaved();
-    } catch (error) {
-      console.error('Error al cerrar el incidente:', error);
-      alert('Ocurrió un error al intentar cerrar la notificación.');
-    }
+    await incidentService.closeIncident(dataToClose.id, dataToClose);
+    setIsCreating(false);
+    setFormData(null);
+    onIncidentSaved();
   };
 
   const handleCopyTemplate = async () => {
     if (!formData) return;
 
-    // Procesamiento seguro del link de Jira
     const rawJiraInput = formData.jira || '';
     const ticketCode = rawJiraInput.includes('/') ? rawJiraInput.split('/').pop() : rawJiraInput;
     const fullJiraUrl = rawJiraInput.startsWith('http') 
@@ -280,17 +298,11 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
 
     const plainText = `Servicios Afectados:\n[Tabla de servicios]\n\nImpacto A Usuarios: ${formData.impact}\nJira: ${ticketCode} (${fullJiraUrl})\nDescripción de la falla: ${formData.description}`;
 
-    try {
-      const clipboardItem = new ClipboardItem({
-        'text/html': new Blob([htmlContent], { type: 'text/html' }),
-        'text/plain': new Blob([plainText], { type: 'text/plain' })
-      });
-      await navigator.clipboard.write([clipboardItem]);
-      alert('¡Plantilla copiada al portapapeles exitosamente!');
-    } catch (err) {
-      console.error('Error al copiar con formato:', err);
-      alert('No se pudo copiar al portapapeles.');
-    }
+    const clipboardItem = new ClipboardItem({
+      'text/html': new Blob([htmlContent], { type: 'text/html' }),
+      'text/plain': new Blob([plainText], { type: 'text/plain' })
+    });
+    await navigator.clipboard.write([clipboardItem]);
   };
 
   const handleApplyFirstStartTime = () => {
@@ -326,6 +338,7 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     availableServices,
     formData,
     errors,
+    isSaving,
     setIsCreating,
     setFormData,
     setErrors,

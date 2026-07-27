@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { axiosClient } from '../services/axiosClient';
 
-// Definición de la interfaz basada en tu JSON
 export interface Service {
   id?: number;
   code: string;
@@ -14,9 +13,11 @@ export default function ServiceManagementPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [searchCode, setSearchCode] = useState<string>(''); // Estado para la barra de búsqueda
+  const [searchCode, setSearchCode] = useState<string>('');
 
-  // Estado del formulario (para crear o modificar)
+  // Estado para las notificaciones flotantes (Toast)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   const [formData, setFormData] = useState<Service>({
     code: '',
     name: '',
@@ -24,12 +25,17 @@ export default function ServiceManagementPage() {
     active: true
   });
 
-  // Cargar todos al iniciar
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  };
+
   useEffect(() => {
     fetchAllServices();
   }, []);
 
-  // Cargar datos en el formulario al seleccionar uno de la tabla para editar
   useEffect(() => {
     if (selectedService) {
       setFormData(selectedService);
@@ -43,13 +49,12 @@ export default function ServiceManagementPage() {
     setSelectedService(null);
   };
 
-  // 1. LISTAR / BUSCAR TODOS (GET /v1/api/services/all)
   const fetchAllServices = async () => {
     try {
       setLoading(true);
       const response = await axiosClient.get<Service[]>('/v1/api/services/all'); 
       setServices(response.data);
-      setSearchCode(''); // Limpia el input de búsqueda al recargar todos
+      setSearchCode('');
     } catch (error) {
       console.error('Error al cargar todos los servicios:', error);
     } finally {
@@ -57,7 +62,6 @@ export default function ServiceManagementPage() {
     }
   };
 
-  // 2. BUSCAR POR CÓDIGO (GET /v1/api/services/{code})
   const handleSearchByCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchCode.trim()) {
@@ -71,38 +75,35 @@ export default function ServiceManagementPage() {
       setServices(response.data ? [response.data] : []);
     } catch (error) {
       console.error('No se encontró el servicio:', error);
-      setServices([]); // Si no existe, muestra la tabla vacía
+      setServices([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // 3. CREAR (POST /v1/api/services) O MODIFICAR (PUT /v1/api/services/{code})
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (selectedService) {
-        // MODIFICAR (PUT /v1/api/services/{code})
         await axiosClient.put(`/v1/api/services/${formData.code}`, formData);
-        alert('Servicio actualizado con éxito');
+        showToast('success', 'Servicio actualizado con éxito');
       } else {
-        // CREAR (POST /v1/api/services)
         await axiosClient.post('/v1/api/services', formData);
-        alert('Servicio creado con éxito');
+        showToast('success', 'Servicio creado con éxito');
       }
       fetchAllServices();
       resetForm();
     } catch (error) {
       console.error('Error al guardar el servicio:', error);
-      alert('Ocurrió un error al guardar el servicio');
+      showToast('error', 'Ocurrió un error al guardar el servicio');
     }
   };
 
   return (
-    <div style={{ display: 'flex', gap: '20px', padding: '20px' }}>
+    <div style={{ display: 'flex', gap: '20px', padding: '20px', position: 'relative', minHeight: '80vh', boxSizing: 'border-box' }}>
       
-      {/* SECCIÓN IZQUIERDA: Formulario de Creación / Edición */}
-      <div style={{ flex: 1, background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+      {/* SECCIÓN IZQUIERDA: Formulario */}
+      <div style={{ flex: 1, background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)', height: 'fit-content' }}>
         <h3 style={{ marginTop: 0 }}>
           {selectedService ? '✏️ Modificar Servicio' : '➕ Crear Nuevo Servicio'}
         </h3>
@@ -116,7 +117,7 @@ export default function ServiceManagementPage() {
               onChange={(e) => setFormData({ ...formData, code: e.target.value })}
               placeholder="Ej. S4"
               required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '4px' }}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '4px', boxSizing: 'border-box' }}
             />
           </div>
 
@@ -128,7 +129,7 @@ export default function ServiceManagementPage() {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Ej. Servicio de Pagos"
               required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '4px' }}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '4px', boxSizing: 'border-box' }}
             />
           </div>
 
@@ -153,7 +154,7 @@ export default function ServiceManagementPage() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-            <button type="submit" style={{ backgroundColor: 'var(--primary)', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+            <button type="submit" style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
               {selectedService ? 'Actualizar' : 'Guardar'}
             </button>
             {selectedService && (
@@ -165,10 +166,9 @@ export default function ServiceManagementPage() {
         </form>
       </div>
 
-      {/* SECCIÓN DERECHA: Tabla Listado General y Buscador */}
+      {/* SECCIÓN DERECHA: Tabla y Buscador */}
       <div style={{ flex: 2, background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
         
-        {/* Cabecera y Barra de Búsqueda */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h3 style={{ margin: 0 }}>📋 Lista de Servicios</h3>
           
@@ -192,11 +192,11 @@ export default function ServiceManagementPage() {
         {loading ? (
           <p>Cargando servicios...</p>
         ) : services.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>No se encontraron servicios.</p>
+          <p style={{ color: '#64748b' }}>No se encontraron servicios.</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
+              <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left', background: '#f8fafc' }}>
                 <th style={{ padding: '8px' }}>Código</th>
                 <th style={{ padding: '8px' }}>Nombre</th>
                 <th style={{ padding: '8px' }}>BIA</th>
@@ -206,7 +206,7 @@ export default function ServiceManagementPage() {
             </thead>
             <tbody>
               {services.map((srv) => (
-                <tr key={srv.id || srv.code} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <tr key={srv.id || srv.code} style={{ borderBottom: '1px solid #e2e8f0' }}>
                   <td style={{ padding: '8px', fontWeight: 500 }}>{srv.code}</td>
                   <td style={{ padding: '8px' }}>{srv.name}</td>
                   <td style={{ padding: '8px' }}>{srv.isBia ? '✅' : '❌'}</td>
@@ -228,6 +228,29 @@ export default function ServiceManagementPage() {
           </table>
         )}
       </div>
+
+      {/* 🟢 NOTIFICACIÓN FLOTANTE (TOAST) EN VEZ DE ALERT */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '25px',
+          right: '25px',
+          backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
+          color: '#ffffff',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          fontSize: '14px',
+          fontWeight: '500',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span>{toast.type === 'success' ? '✔' : '✖'}</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
 
     </div>
   );

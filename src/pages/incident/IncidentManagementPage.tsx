@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useIncidentList } from "../../hooks/useIncidentList";
 import { useIncidentForm } from "../../hooks/useIncidentForm";
 import { formatDateTimeIfNeeded, getIconForAffectation } from "../../utils/incidentHelpers";
@@ -21,6 +22,7 @@ export default function IncidentManagementPage() {
     availableServices,
     formData,
     errors,
+    isSaving,
     setIsCreating,
     setFormData,
     setErrors,
@@ -34,6 +36,44 @@ export default function IncidentManagementPage() {
     handleSetCurrentStartTimeFirstService,
     handleSetCurrentEndTimeFirstService,
   } = useIncidentForm(selectedIncident, refreshCurrentList);
+
+  // Estado local para notificaciones flotantes (Toast) no intrusivas
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  };
+
+  // Funciones manuales con notificaciones visuales limpias
+  const onSaveClick = async () => {
+    try {
+      await handleSaveAction();
+      showToast('success', isCreating ? 'Nuevo incidente creado exitosamente.' : 'Cambios guardados exitosamente.');
+    } catch (error) {
+      showToast('error', 'Ocurrió un error al guardar en el servidor.');
+    }
+  };
+
+  const onCloseClick = async () => {
+    try {
+      await handleCloseIncident();
+      showToast('success', 'Incidente cerrado exitosamente.');
+    } catch (error) {
+      showToast('error', 'Ocurrió un error al intentar cerrar la notificación.');
+    }
+  };
+
+  const onCopyClick = async () => {
+    try {
+      await handleCopyTemplate();
+      showToast('success', '¡Plantilla copiada al portapapeles exitosamente!');
+    } catch (err) {
+      showToast('error', 'No se pudo copiar al portapapeles.');
+    }
+  };
 
   // Funciones de manipulación de tablas y comentarios que alimentan el form...
   const handleAddAffectedService = () => {
@@ -89,7 +129,7 @@ export default function IncidentManagementPage() {
   };
 
   return (
-    <div style={{ width: '100vw', maxWidth: '100%', height: 'calc(100vh - 70px)', display: 'flex', gap: '15px', padding: '15px', boxSizing: 'border-box', backgroundColor: '#f1f5f9' }}>
+    <div style={{ width: '100vw', maxWidth: '100%', height: 'calc(100vh - 70px)', display: 'flex', gap: '15px', padding: '15px', boxSizing: 'border-box', backgroundColor: '#f1f5f9', position: 'relative' }}>
       
       <IncidentSidebarLeft 
         incidents={incidents}
@@ -105,9 +145,16 @@ export default function IncidentManagementPage() {
       <div style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: '8px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowY: 'auto' }}>
         {formData ? (
           <div>
-            <h2 style={{ margin: '0 0 15px 0', fontSize: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
-              {isCreating ? 'Crear Nuevo Incidente' : 'Editar Incidente'}
-            </h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', marginBottom: '15px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px' }}>
+                {isCreating ? 'Crear Nuevo Incidente' : 'Editar Incidente'}
+              </h2>
+              {isSaving && (
+                <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
+                  Autoguardando cambios... 🔄
+                </span>
+              )}
+            </div>
 
             {Object.keys(errors).length > 0 && (
               <div style={{ backgroundColor: '#ffeeec', border: '1px solid #ef4444', padding: '10px 14px', borderRadius: '6px', marginBottom: '15px', color: '#b91c1c', fontSize: '13px' }}>
@@ -202,7 +249,7 @@ export default function IncidentManagementPage() {
             </div>
 
             <div style={{ marginTop: '25px', display: 'flex', gap: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-              <button onClick={handleSaveAction} style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+              <button onClick={onSaveClick} style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
                 {isCreating ? 'Guardar Nuevo Incidente' : 'Guardar Cambios'}
               </button>
               {isCreating ? (
@@ -210,7 +257,7 @@ export default function IncidentManagementPage() {
                   Cancelar
                 </button>
               ) : (
-                <button onClick={handleCloseIncident} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                <button onClick={onCloseClick} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
                   Cerrar Incidente
                 </button>
               )}
@@ -223,13 +270,36 @@ export default function IncidentManagementPage() {
 
       <IncidentSidebarRight 
         hasFormData={!!formData}
-        onCopyTemplate={handleCopyTemplate}
+        onCopyTemplate={onCopyClick}
         onApplyFirstStartTime={handleApplyFirstStartTime}
         onApplyFirstEndTime={handleApplyFirstEndTime}
         onApplyFirstAffectationType={handleApplyFirstAffectationType}
         onSetCurrentStartTimeFirst={handleSetCurrentStartTimeFirstService}
         onSetCurrentEndTimeFirst={handleSetCurrentEndTimeFirstService}
       />
+
+      {/* 🟢 NOTIFICACIÓN FLOTANTE (TOAST) NO INTRUSIVA */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '25px',
+          right: '25px',
+          backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
+          color: '#ffffff',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          fontSize: '14px',
+          fontWeight: '500',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span>{toast.type === 'success' ? '✔' : '✖'}</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
 
     </div>
   );
