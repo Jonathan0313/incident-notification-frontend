@@ -201,11 +201,46 @@ export default function IncidentManagementPage() {
     }
   };
 
-  const handleStartOpenIncident = () => {
-    handleStartCreate();
-    setTimeout(() => {
-      setFormData(prev => prev ? { ...prev, name: 'Incidente Abierto - ' } : null);
-    }, 50);
+  const handleStartOpenIncident = async () => {
+    const sourceData = formData || selectedIncident;
+    if (!sourceData) {
+      showToast('error', 'Por favor selecciona una plantilla primero.');
+      return;
+    }
+
+    // Extraemos el id y lo descartamos explícitamente para que el hook y el backend 
+    // no intenten buscar un registro existente por el ID de la plantilla.
+    const { id, ...restSourceData } = sourceData as any;
+    
+    const cleanPayload = {
+      ...restSourceData,
+      id: undefined, // Forzamos que vaya vacío o indefinido
+      name: sourceData.name || '',
+      status: 'ACTIVE',
+      comments: sourceData.comments || []
+    };
+
+    try {
+      setFilterType('active');
+      setIsCreating(true);
+      setFormData(cleanPayload);
+
+      // Pequeña pausa de ciclo de vida para asegurar que el estado se limpie antes de invocar la acción
+      setTimeout(async () => {
+        await handleSaveAction();
+        await refreshCurrentList();
+        showToast('success', 'Incidente creado exitosamente.');
+      }, 50);
+
+    } catch (error: any) {
+      console.error('Error al crear incidente desde plantilla:', error);
+      const backendMessage = 
+        error?.response?.data?.message || 
+        error?.response?.data?.error || 
+        error?.message || 
+        'Error al crear el incidente.';
+      showToast('error', backendMessage);
+    }
   };
 
   const handleAddAffectedService = () => {
@@ -458,7 +493,7 @@ export default function IncidentManagementPage() {
                     
                     {!isCreating && (
                       <button onClick={handleStartOpenIncident} style={{ backgroundColor: '#0ea5e9', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-                        🚀 Crear Incidente Abierto
+                        🚀 Crear Incidente
                       </button>
                     )}
                   </>
