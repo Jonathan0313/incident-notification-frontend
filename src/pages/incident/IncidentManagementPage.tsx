@@ -6,6 +6,7 @@ import { IncidentSidebarLeft } from "./components/IncidentSidebarLeft";
 import { IncidentSidebarRight } from "./components/IncidentSidebarRight";
 import { AffectedServicesTable } from "./components/AffectedServicesTable";
 import { notificationTemplateService, type NotificationTemplate } from "../../services/notificationTemplateService";
+import { templateService } from "../../services/templateService"; // Servicio para los desplegables
 
 export default function IncidentManagementPage() {
   const {
@@ -39,6 +40,7 @@ export default function IncidentManagementPage() {
   } = useIncidentForm(selectedIncident, refreshCurrentList);
 
   const [templates, setTemplates] = useState<any[]>([]);
+  const [dropdownTemplates, setDropdownTemplates] = useState<any[]>([]); // Plantillas para los <select>
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -47,32 +49,49 @@ export default function IncidentManagementPage() {
   };
 
   useEffect(() => {
+    fetchDropdownTemplates();
+  }, []);
+
+  useEffect(() => {
     if (filterType === 'templates') {
-      loadTemplates();
+      loadTemplatesSidebar();
     }
   }, [filterType]);
 
-  const loadTemplates = async () => {
+  // Carga las opciones para los <select> usando templateService
+  const fetchDropdownTemplates = async () => {
+    try {
+      const data = await templateService.getAll();
+      setDropdownTemplates(data || []);
+    } catch (error) {
+      console.error('Error al cargar plantillas para los desplegables', error);
+    }
+  };
+
+  // Carga la lista lateral de la izquierda usando notificationTemplateService
+  const loadTemplatesSidebar = async () => {
     try {
       const data = await notificationTemplateService.getAll();
-      const mapped = data.map((t: NotificationTemplate) => ({
+      const mapped = (data || []).map((t: any) => ({
         id: t.id || '',
         name: t.name,
-        impact: t.impact,
-        functionality: t.functionality,
-        jira: t.jira,
-        partnerCase: t.partnerCase,
-        affectedComponent: t.affectedComponent,
-        description: t.description,
-        resolution: t.resolution,
-        affectedServices: t.affectedServices,
+        typeTemplate: t.typeTemplate,
+        messageTemplate: t.messageTemplate,
+        impact: t.impact || '',
+        functionality: t.functionality || 'General',
+        jira: t.jira || '',
+        partnerCase: t.partnerCase || '',
+        affectedComponent: t.affectedComponent || '',
+        description: t.description || '',
+        resolution: t.resolution || '',
+        affectedServices: t.affectedServices || [],
         comments: [],
         status: 'TEMPLATE',
         createdAt: t.createdAt || new Date().toISOString()
       }));
       setTemplates(mapped);
     } catch (error) {
-      showToast('error', 'No se pudieron cargar las plantillas.');
+      showToast('error', 'No se pudieron cargar las plantillas de la barra lateral.');
     }
   };
 
@@ -99,9 +118,7 @@ export default function IncidentManagementPage() {
 
       await notificationTemplateService.create(templatePayload);
       showToast('success', '¡Plantilla guardada exitosamente!');
-      if (filterType === 'templates') {
-        loadTemplates();
-      }
+      if (filterType === 'templates') loadTemplatesSidebar();
     } catch (error) {
       showToast('error', 'Error al guardar la plantilla en el servidor.');
     }
@@ -130,9 +147,7 @@ export default function IncidentManagementPage() {
 
       await notificationTemplateService.update(selectedIncident.id, templatePayload);
       showToast('success', '¡Plantilla actualizada exitosamente!');
-      if (filterType === 'templates') {
-        loadTemplates();
-      }
+      if (filterType === 'templates') loadTemplatesSidebar();
     } catch (error) {
       showToast('error', 'Error al actualizar la plantilla.');
     }
@@ -145,7 +160,7 @@ export default function IncidentManagementPage() {
     try {
       await notificationTemplateService.delete(selectedIncident.id);
       showToast('success', 'Plantilla eliminada exitosamente.');
-      loadTemplates();
+      loadTemplatesSidebar();
       setSelectedIncident(null);
     } catch (error) {
       showToast('error', 'Error al eliminar la plantilla.');
@@ -231,6 +246,10 @@ export default function IncidentManagementPage() {
     setFormData({ ...formData, comments: updatedComments });
   };
 
+  const normalizeText = (str: string) => {
+    return str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";
+  };
+
   return (
     <div style={{ width: '100vw', maxWidth: '100%', height: 'calc(100vh - 70px)', display: 'flex', gap: '15px', padding: '15px', boxSizing: 'border-box', backgroundColor: '#f1f5f9', position: 'relative' }}>
       
@@ -314,11 +333,37 @@ export default function IncidentManagementPage() {
             </table>
 
             <div style={{ fontSize: '14px', marginTop: '15px' }}>
+              
+              {/* DESCRIPCIÓN DE LA FALLA */}
               <div style={{ marginBottom: '12px' }}>
-                <strong>Descripción de la falla: *</strong><br />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <strong>Descripción de la falla: *</strong>
+                  <select
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      setFormData({ ...formData, description: val });
+                      e.target.value = '';
+                    }}
+                    style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', cursor: 'pointer' }}
+                  >
+                    <option value="">📋 Cargar plantilla en Descripción...</option>
+                    {dropdownTemplates
+                      .filter((t) => {
+                        const type = normalizeText(t.typeTemplate);
+                        return type.includes('desc') || type.includes('falla');
+                      })
+                      .map((t, idx) => (
+                        <option key={idx} value={t.messageTemplate || ''}>
+                          {t.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
                 <textarea value={formData.description || ''} onChange={(e) => setFormData({...formData, description: e.target.value})} rows={3} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
               </div>
 
+              {/* AVANCES */}
               <div style={{ margin: '15px 0', borderTop: '1px dashed #e2e8f0', paddingTop: '15px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <strong>Avances:</strong>
@@ -329,9 +374,32 @@ export default function IncidentManagementPage() {
                 ) : (
                   formData.comments.map((comment, index) => (
                     <div key={index} style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', margin: '8px 0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Avance {index + 1}:</span>
-                        <button type="button" onClick={() => handleDeleteComment(index)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', width: '22px', height: '22px' }}>-</button>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <select
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (!val) return;
+                              handleCommentChange(index, val);
+                              e.target.value = '';
+                            }}
+                            style={{ fontSize: '11px', padding: '2px 4px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                          >
+                            <option value="">📋 Plantilla...</option>
+                            {dropdownTemplates
+                              .filter((t) => {
+                                const type = normalizeText(t.typeTemplate);
+                                return type.includes('avan') || type.includes('seg');
+                              })
+                              .map((t, tIdx) => (
+                                <option key={tIdx} value={t.messageTemplate || ''}>
+                                  {t.name}
+                                </option>
+                              ))}
+                          </select>
+                          <button type="button" onClick={() => handleDeleteComment(index)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', width: '22px', height: '22px' }}>-</button>
+                        </div>
                       </div>
                       <textarea value={comment.content || ''} onChange={(e) => handleCommentChange(index, e.target.value)} rows={2} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
                     </div>
@@ -339,8 +407,32 @@ export default function IncidentManagementPage() {
                 )}
               </div>
 
+              {/* SOLUCIÓN */}
               <div style={{ marginBottom: '15px', borderTop: '1px dashed #e2e8f0', paddingTop: '15px' }}>
-                <strong>Solución: *</strong><br />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <strong>Solución: *</strong>
+                  <select
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      setFormData({ ...formData, resolution: val });
+                      e.target.value = '';
+                    }}
+                    style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', cursor: 'pointer' }}
+                  >
+                    <option value="">📋 Cargar plantilla en Solución...</option>
+                    {dropdownTemplates
+                      .filter((t) => {
+                        const type = normalizeText(t.typeTemplate);
+                        return type.includes('sol') || type.includes('cier');
+                      })
+                      .map((t, idx) => (
+                        <option key={idx} value={t.messageTemplate || ''}>
+                          {t.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
                 <textarea value={formData.resolution || ''} onChange={(e) => setFormData({...formData, resolution: e.target.value})} rows={3} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
               </div>
             </div>

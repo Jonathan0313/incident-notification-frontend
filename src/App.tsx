@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import IncidentManagementPage from './pages/incident/IncidentManagementPage';
-import ServiceManagementPage from './pages/ServiceManagementPage'; // O ajusta según la ubicación correcta de tu ServiceManagementPage
+import ServiceManagementPage from './pages/ServiceManagementPage';
+import TemplateManagementPage from './pages/template/TemplateManagementPage';
 import './index.css';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <div className="navbar-links">
             <Link to="/incidents">Gestión de Incidentes</Link>
             <Link to="/services">Gestión de Servicios</Link>
+            <Link to="/templates">Gestión de Templates</Link>
           </div>
         </nav>
 
@@ -26,6 +28,7 @@ function App() {
             <Route path="/" element={<IncidentManagementPage />} />
             <Route path="/incidents" element={<IncidentManagementPage />} />
             <Route path="/services" element={<ServiceManagementPage />} />
+            <Route path="/templates" element={<TemplateManagementPage />} />
           </Routes>
         </main>
 
