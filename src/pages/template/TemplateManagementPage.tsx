@@ -54,9 +54,10 @@ export default function TemplateManagementPage() {
       const response = await axiosClient.get<Template[]>('/v1/api/templates'); 
       setTemplates(response.data);
       setSearchName('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al cargar todas las plantillas:', error);
-      showToast('error', 'Error al cargar las plantillas');
+      const backendMessage = error?.response?.data?.message || error?.message || 'Error al cargar las plantillas';
+      showToast('error', backendMessage);
     } finally {
       setLoading(false);
     }
@@ -71,17 +72,16 @@ export default function TemplateManagementPage() {
 
     try {
       setLoading(true);
-      // Asumiendo que filtras localmente o tienes un endpoint por nombre. 
-      // Si prefieres filtrar localmente con los datos actuales:
       const response = await axiosClient.get<Template[]>('/v1/api/templates');
       const filtered = response.data.filter(t => 
         t.name.toLowerCase().includes(searchName.trim().toLowerCase()) ||
         t.typeTemplate.toLowerCase().includes(searchName.trim().toLowerCase())
       );
       setTemplates(filtered);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al buscar la plantilla:', error);
       setTemplates([]);
+      showToast('error', 'Error al buscar la plantilla');
     } finally {
       setLoading(false);
     }
@@ -99,9 +99,18 @@ export default function TemplateManagementPage() {
       }
       fetchAllTemplates();
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al guardar la plantilla:', error);
-      showToast('error', 'Ocurrió un error al guardar la plantilla');
+      
+      // 🟢 EXTRACCIÓN INTELIGENTE DEL MENSAJE DEL BACKEND (Ej: Nombre único repetido)
+      const backendMessage = 
+        error?.response?.data?.message || 
+        error?.response?.data?.error || 
+        (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+        error?.message || 
+        'Ocurrió un error al guardar la plantilla';
+
+      showToast('error', backendMessage);
     }
   };
 
@@ -112,9 +121,10 @@ export default function TemplateManagementPage() {
         await axiosClient.delete(`/v1/api/templates/${id}`);
         showToast('success', 'Plantilla eliminada con éxito');
         fetchAllTemplates();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error al eliminar la plantilla:', error);
-        showToast('error', 'No se pudo eliminar la plantilla');
+        const backendMessage = error?.response?.data?.message || error?.message || 'No se pudo eliminar la plantilla';
+        showToast('error', backendMessage);
       }
     }
   };
@@ -144,14 +154,24 @@ export default function TemplateManagementPage() {
           </div>
 
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Nombre:</label>
+            <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Nombre (Único):</label>
             <input 
               type="text" 
               value={formData.name} 
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Ej. Plantilla Inicial de Incidente"
               required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '4px', boxSizing: 'border-box' }}
+              disabled={selectedTemplate !== null} // 🟢 BLOQUEADO AL EDITAR PARA EVITAR CAMBIAR OTROS REGISTROS
+              style={{ 
+                width: '100%', 
+                padding: '8px', 
+                borderRadius: '4px', 
+                border: '1px solid var(--border-color)', 
+                marginTop: '4px', 
+                boxSizing: 'border-box',
+                backgroundColor: selectedTemplate !== null ? '#f1f5f9' : '#fff',
+                cursor: selectedTemplate !== null ? 'not-allowed' : 'text'
+              }}
             />
           </div>
 
@@ -219,7 +239,7 @@ export default function TemplateManagementPage() {
             </thead>
             <tbody>
               {templates.map((tpl) => (
-                <tr key={tpl.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <tr key={tpl.id || tpl.name} style={{ borderBottom: '1px solid #e2e8f0' }}>
                   <td style={{ padding: '8px', fontWeight: 500 }}>
                     <span style={{ backgroundColor: '#e0e7ff', color: '#3730a3', padding: '3px 8px', borderRadius: '12px', fontSize: '12px' }}>
                       {tpl.typeTemplate}
@@ -248,7 +268,7 @@ export default function TemplateManagementPage() {
         )}
       </div>
 
-      {/* 🟢 NOTIFICACIÓN FLOTANTE (TOAST) */}
+      {/* NOTIFICACIÓN FLOTANTE (TOAST) */}
       {toast && (
         <div style={{
           position: 'fixed',

@@ -178,8 +178,17 @@ export default function IncidentManagementPage() {
     try {
       await handleCloseIncident();
       showToast('success', 'Incidente cerrado exitosamente.');
-    } catch (error) {
-      showToast('error', 'Ocurrió un error al intentar cerrar la notificación.');
+    } catch (error: any) {
+      console.error('Error al cerrar el incidente:', error);
+      
+      const backendMessage = 
+        error?.response?.data?.message || 
+        error?.response?.data?.error || 
+        (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+        error?.message || 
+        'Ocurrió un error al intentar cerrar la notificación.';
+
+      showToast('error', backendMessage);
     }
   };
 
@@ -192,7 +201,6 @@ export default function IncidentManagementPage() {
     }
   };
 
-  // 🚀 Iniciar un incidente abierto (con valores por defecto opcionales)
   const handleStartOpenIncident = () => {
     handleStartCreate();
     setTimeout(() => {
@@ -340,7 +348,6 @@ export default function IncidentManagementPage() {
 
             <div style={{ fontSize: '14px', marginTop: '15px' }}>
               
-              {/* DESCRIPCIÓN DE LA FALLA */}
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <strong>Descripción de la falla: *</strong>
@@ -369,7 +376,6 @@ export default function IncidentManagementPage() {
                 <textarea value={formData.description || ''} onChange={(e) => setFormData({...formData, description: e.target.value})} rows={3} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
               </div>
 
-              {/* AVANCES */}
               <div style={{ margin: '15px 0', borderTop: '1px dashed #e2e8f0', paddingTop: '15px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <strong>Avances:</strong>
@@ -413,7 +419,6 @@ export default function IncidentManagementPage() {
                 )}
               </div>
 
-              {/* SOLUCIÓN */}
               <div style={{ marginBottom: '15px', borderTop: '1px dashed #e2e8f0', paddingTop: '15px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <strong>Solución: *</strong>
@@ -443,7 +448,6 @@ export default function IncidentManagementPage() {
               </div>
             </div>
 
-            {/* Barra de Botones de Acción */}
             <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {filterType === 'templates' ? (
@@ -452,7 +456,6 @@ export default function IncidentManagementPage() {
                       Actualizar Plantilla
                     </button>
                     
-                    {/* Botón movido aquí: Solo aparece cuando estás en la sección de Plantillas */}
                     {!isCreating && (
                       <button onClick={handleStartOpenIncident} style={{ backgroundColor: '#0ea5e9', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
                         🚀 Crear Incidente Abierto

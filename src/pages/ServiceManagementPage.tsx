@@ -55,8 +55,10 @@ export default function ServiceManagementPage() {
       const response = await axiosClient.get<Service[]>('/v1/api/services/all'); 
       setServices(response.data);
       setSearchCode('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al cargar todos los servicios:', error);
+      const backendMessage = error?.response?.data?.message || error?.message || 'Error al cargar los servicios';
+      showToast('error', backendMessage);
     } finally {
       setLoading(false);
     }
@@ -73,9 +75,10 @@ export default function ServiceManagementPage() {
       setLoading(true);
       const response = await axiosClient.get<Service>(`/v1/api/services/${searchCode.trim()}`);
       setServices(response.data ? [response.data] : []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('No se encontró el servicio:', error);
       setServices([]);
+      showToast('error', 'No se encontró el servicio con ese código');
     } finally {
       setLoading(false);
     }
@@ -96,7 +99,6 @@ export default function ServiceManagementPage() {
     } catch (error: any) {
       console.error('Error al guardar el servicio:', error);
       
-      // Extracción del mensaje real del backend (Ej: código repetido)
       const backendMessage = 
         error?.response?.data?.message || 
         error?.response?.data?.error || 
@@ -126,7 +128,7 @@ export default function ServiceManagementPage() {
               onChange={(e) => setFormData({ ...formData, code: e.target.value })}
               placeholder="Ej. S4"
               required
-              disabled={selectedService !== null} // 🟢 BLOQUEADO AL EDITAR
+              disabled={selectedService !== null}
               style={{ 
                 width: '100%', 
                 padding: '8px', 
@@ -134,7 +136,7 @@ export default function ServiceManagementPage() {
                 border: '1px solid var(--border-color)', 
                 marginTop: '4px', 
                 boxSizing: 'border-box',
-                backgroundColor: selectedService !== null ? '#f1f5f9' : '#fff', // Fondo grisáceo si está deshabilitado
+                backgroundColor: selectedService !== null ? '#f1f5f9' : '#fff',
                 cursor: selectedService !== null ? 'not-allowed' : 'text'
               }}
             />
