@@ -6,7 +6,7 @@ import { IncidentSidebarLeft } from "./components/IncidentSidebarLeft";
 import { IncidentSidebarRight } from "./components/IncidentSidebarRight";
 import { AffectedServicesTable } from "./components/AffectedServicesTable";
 import { notificationTemplateService, type NotificationTemplate } from "../../services/notificationTemplateService";
-import { templateService } from "../../services/templateService"; // Servicio para los desplegables
+import { templateService } from "../../services/templateService";
 
 export default function IncidentManagementPage() {
   const {
@@ -40,7 +40,7 @@ export default function IncidentManagementPage() {
   } = useIncidentForm(selectedIncident, refreshCurrentList);
 
   const [templates, setTemplates] = useState<any[]>([]);
-  const [dropdownTemplates, setDropdownTemplates] = useState<any[]>([]); // Plantillas para los <select>
+  const [dropdownTemplates, setDropdownTemplates] = useState<any[]>([]);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -58,7 +58,6 @@ export default function IncidentManagementPage() {
     }
   }, [filterType]);
 
-  // Carga las opciones para los <select> usando templateService
   const fetchDropdownTemplates = async () => {
     try {
       const data = await templateService.getAll();
@@ -68,7 +67,6 @@ export default function IncidentManagementPage() {
     }
   };
 
-  // Carga la lista lateral de la izquierda usando notificationTemplateService
   const loadTemplatesSidebar = async () => {
     try {
       const data = await notificationTemplateService.getAll();
@@ -192,6 +190,14 @@ export default function IncidentManagementPage() {
     } catch (err) {
       showToast('error', 'No se pudo copiar al portapapeles.');
     }
+  };
+
+  // 🚀 Iniciar un incidente abierto (con valores por defecto opcionales)
+  const handleStartOpenIncident = () => {
+    handleStartCreate();
+    setTimeout(() => {
+      setFormData(prev => prev ? { ...prev, name: 'Incidente Abierto - ' } : null);
+    }, 50);
   };
 
   const handleAddAffectedService = () => {
@@ -439,11 +445,20 @@ export default function IncidentManagementPage() {
 
             {/* Barra de Botones de Acción */}
             <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {filterType === 'templates' ? (
-                  <button onClick={handleUpdateTemplate} style={{ backgroundColor: '#2563eb', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-                    Actualizar Plantilla
-                  </button>
+                  <>
+                    <button onClick={handleUpdateTemplate} style={{ backgroundColor: '#2563eb', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                      Actualizar Plantilla
+                    </button>
+                    
+                    {/* Botón movido aquí: Solo aparece cuando estás en la sección de Plantillas */}
+                    {!isCreating && (
+                      <button onClick={handleStartOpenIncident} style={{ backgroundColor: '#0ea5e9', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                        🚀 Crear Incidente Abierto
+                      </button>
+                    )}
+                  </>
                 ) : (
                   <button onClick={onSaveClick} style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
                     {isCreating ? 'Guardar Nuevo Incidente' : 'Guardar Cambios'}
