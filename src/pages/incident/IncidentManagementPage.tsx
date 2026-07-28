@@ -107,7 +107,6 @@ export default function IncidentManagementPage() {
     }
   };
 
-  // 🔄 NUEVO: Función para actualizar una plantilla existente
   const handleUpdateTemplate = async () => {
     if (!selectedIncident || !selectedIncident.id) return;
     try {
@@ -139,7 +138,6 @@ export default function IncidentManagementPage() {
     }
   };
 
-  // 🗑️ NUEVO: Función para eliminar una plantilla
   const handleDeleteTemplate = async () => {
     if (!selectedIncident || !selectedIncident.id) return;
     if (!window.confirm('¿Estás seguro de que deseas eliminar esta plantilla?')) return;
@@ -360,9 +358,11 @@ export default function IncidentManagementPage() {
                   </button>
                 )}
                 
-                <button onClick={handleSaveAsTemplate} style={{ backgroundColor: '#8b5cf6', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-                  💾 Guardar como Plantilla
-                </button>
+                {filterType !== 'templates' && (
+                  <button onClick={handleSaveAsTemplate} style={{ backgroundColor: '#8b5cf6', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                    💾 Guardar como Plantilla
+                  </button>
+                )}
               </div>
 
               {isCreating ? (
