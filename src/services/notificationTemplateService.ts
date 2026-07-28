@@ -40,6 +40,18 @@ export const notificationTemplateService = {
     return response.json();
   },
 
+  // 🔄 NUEVO: Actualizar plantilla existente
+  async update(id: string, template: NotificationTemplate): Promise<NotificationTemplate> {
+    const response = await fetch(`${API_URL}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(template),
+    });
+    if (!response.ok) throw new Error('Error al actualizar la plantilla');
+    return response.json();
+  },
+
+  // 🗑️ NUEVO: Eliminar plantilla por ID
   async delete(id: string): Promise<void> {
     const response = await fetch(`${API_URL}/${id}`, {
       method: 'DELETE',

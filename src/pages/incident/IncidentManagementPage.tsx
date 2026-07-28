@@ -107,6 +107,53 @@ export default function IncidentManagementPage() {
     }
   };
 
+  // 🔄 NUEVO: Función para actualizar una plantilla existente
+  const handleUpdateTemplate = async () => {
+    if (!selectedIncident || !selectedIncident.id) return;
+    try {
+      const templatePayload: NotificationTemplate = {
+        name: formData.name,
+        impact: formData.impact,
+        functionality: (formData as any).functionality || 'General',
+        jira: formData.jira,
+        partnerCase: formData.partnerCase,
+        affectedComponent: (formData as any).affectedComponent,
+        description: formData.description,
+        resolution: formData.resolution,
+        affectedServices: ((formData as any).affectedServices || []).map((s: any) => ({
+          code: s.code,
+          nameService: s.nameService,
+          status: s.status,
+          startTime: s.startTime,
+          endTime: s.endTime
+        }))
+      };
+
+      await notificationTemplateService.update(selectedIncident.id, templatePayload);
+      showToast('success', '¡Plantilla actualizada exitosamente!');
+      if (filterType === 'templates') {
+        loadTemplates();
+      }
+    } catch (error) {
+      showToast('error', 'Error al actualizar la plantilla.');
+    }
+  };
+
+  // 🗑️ NUEVO: Función para eliminar una plantilla
+  const handleDeleteTemplate = async () => {
+    if (!selectedIncident || !selectedIncident.id) return;
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta plantilla?')) return;
+    
+    try {
+      await notificationTemplateService.delete(selectedIncident.id);
+      showToast('success', 'Plantilla eliminada exitosamente.');
+      loadTemplates();
+      setSelectedIncident(null);
+    } catch (error) {
+      showToast('error', 'Error al eliminar la plantilla.');
+    }
+  };
+
   const onSaveClick = async () => {
     try {
       await handleSaveAction();
@@ -205,9 +252,9 @@ export default function IncidentManagementPage() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', marginBottom: '15px' }}>
               <h2 style={{ margin: 0, fontSize: '20px' }}>
-                {isCreating ? 'Crear Nuevo Incidente' : 'Editar Incidente'}
+                {isCreating ? 'Crear Nuevo Incidente' : (filterType === 'templates' ? 'Editar Plantilla' : 'Editar Incidente')}
               </h2>
-              {isSaving && (
+              {isSaving && filterType !== 'templates' && (
                 <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
                   Autoguardando cambios... 🔄
                 </span>
@@ -300,11 +347,18 @@ export default function IncidentManagementPage() {
               </div>
             </div>
 
+            {/* Barra de Botones de Acción */}
             <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={onSaveClick} style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-                  {isCreating ? 'Guardar Nuevo Incidente' : 'Guardar Cambios'}
-                </button>
+                {filterType === 'templates' ? (
+                  <button onClick={handleUpdateTemplate} style={{ backgroundColor: '#2563eb', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                    Actualizar Plantilla
+                  </button>
+                ) : (
+                  <button onClick={onSaveClick} style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                    {isCreating ? 'Guardar Nuevo Incidente' : 'Guardar Cambios'}
+                  </button>
+                )}
                 
                 <button onClick={handleSaveAsTemplate} style={{ backgroundColor: '#8b5cf6', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
                   💾 Guardar como Plantilla
@@ -314,6 +368,10 @@ export default function IncidentManagementPage() {
               {isCreating ? (
                 <button onClick={() => { setIsCreating(false); setErrors({}); if (incidents.length > 0) setSelectedIncident(incidents[0]); }} style={{ padding: '8px 16px', border: '1px solid #e2e8f0', background: 'transparent', borderRadius: '6px', cursor: 'pointer' }}>
                   Cancelar
+                </button>
+              ) : filterType === 'templates' ? (
+                <button onClick={handleDeleteTemplate} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                  Eliminar Plantilla 🗑️
                 </button>
               ) : (
                 <button onClick={onCloseClick} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
