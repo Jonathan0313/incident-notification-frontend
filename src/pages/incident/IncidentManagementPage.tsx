@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useIncidentList } from "../../hooks/useIncidentList";
 import { useIncidentForm } from "../../hooks/useIncidentForm";
 import { formatDateTimeIfNeeded, getIconForAffectation } from "../../utils/incidentHelpers";
 import { IncidentSidebarLeft } from "./components/IncidentSidebarLeft";
 import { IncidentSidebarRight } from "./components/IncidentSidebarRight";
 import { AffectedServicesTable } from "./components/AffectedServicesTable";
+import { notificationTemplateService, type NotificationTemplate } from "../../services/notificationTemplateService";
 
 export default function IncidentManagementPage() {
   const {
@@ -37,17 +38,75 @@ export default function IncidentManagementPage() {
     handleSetCurrentEndTimeFirstService,
   } = useIncidentForm(selectedIncident, refreshCurrentList);
 
-  // Estado local para notificaciones flotantes (Toast) no intrusivas
+  const [templates, setTemplates] = useState<any[]>([]);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
-    setTimeout(() => {
-      setToast(null);
-    }, 3500);
+    setTimeout(() => { setToast(null); }, 3500);
   };
 
-  // Funciones manuales con notificaciones visuales limpias
+  useEffect(() => {
+    if (filterType === 'templates') {
+      loadTemplates();
+    }
+  }, [filterType]);
+
+  const loadTemplates = async () => {
+    try {
+      const data = await notificationTemplateService.getAll();
+      const mapped = data.map((t: NotificationTemplate) => ({
+        id: t.id || '',
+        name: t.name,
+        impact: t.impact,
+        functionality: t.functionality,
+        jira: t.jira,
+        partnerCase: t.partnerCase,
+        affectedComponent: t.affectedComponent,
+        description: t.description,
+        resolution: t.resolution,
+        affectedServices: t.affectedServices,
+        comments: [],
+        status: 'TEMPLATE',
+        createdAt: t.createdAt || new Date().toISOString()
+      }));
+      setTemplates(mapped);
+    } catch (error) {
+      showToast('error', 'No se pudieron cargar las plantillas.');
+    }
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!formData) return;
+    try {
+      const templatePayload: NotificationTemplate = {
+        name: formData.name,
+        impact: formData.impact,
+        functionality: (formData as any).functionality || 'General',
+        jira: formData.jira,
+        partnerCase: formData.partnerCase,
+        affectedComponent: (formData as any).affectedComponent,
+        description: formData.description,
+        resolution: formData.resolution,
+        affectedServices: ((formData as any).affectedServices || []).map((s: any) => ({
+          code: s.code,
+          nameService: s.nameService,
+          status: s.status,
+          startTime: s.startTime,
+          endTime: s.endTime
+        }))
+      };
+
+      await notificationTemplateService.create(templatePayload);
+      showToast('success', '¡Plantilla guardada exitosamente!');
+      if (filterType === 'templates') {
+        loadTemplates();
+      }
+    } catch (error) {
+      showToast('error', 'Error al guardar la plantilla en el servidor.');
+    }
+  };
+
   const onSaveClick = async () => {
     try {
       await handleSaveAction();
@@ -75,7 +134,6 @@ export default function IncidentManagementPage() {
     }
   };
 
-  // Funciones de manipulación de tablas y comentarios que alimentan el form...
   const handleAddAffectedService = () => {
     if (!formData) return;
     const newServiceRow = { status: '✅', code: '', nameService: '', affectationType: 'OK', startTime: '', endTime: '' };
@@ -132,7 +190,7 @@ export default function IncidentManagementPage() {
     <div style={{ width: '100vw', maxWidth: '100%', height: 'calc(100vh - 70px)', display: 'flex', gap: '15px', padding: '15px', boxSizing: 'border-box', backgroundColor: '#f1f5f9', position: 'relative' }}>
       
       <IncidentSidebarLeft 
-        incidents={incidents}
+        incidents={filterType === 'templates' ? templates : incidents}
         selectedIncident={selectedIncident}
         isCreating={isCreating}
         loading={loading}
@@ -189,14 +247,6 @@ export default function IncidentManagementPage() {
                     <input type="text" value={formData.impact || ''} onChange={(e) => setFormData({...formData, impact: e.target.value})} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
                   </td>
                 </tr>
-                {/* 
-                <tr>
-                  <td style={{ paddingBottom: '12px' }}>
-                    <strong>Funcionalidades Ok: *</strong><br />
-                    <input type="text" value={(formData as any).functionality || ''} onChange={(e) => setFormData({...formData, functionality: e.target.value} as any)} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-                  </td>
-                </tr>
-                */}
                 <tr>
                   <td style={{ paddingBottom: '12px' }}>
                     <strong>Componentes Afectados: *</strong><br />
@@ -250,10 +300,17 @@ export default function IncidentManagementPage() {
               </div>
             </div>
 
-            <div style={{ marginTop: '25px', display: 'flex', gap: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-              <button onClick={onSaveClick} style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-                {isCreating ? 'Guardar Nuevo Incidente' : 'Guardar Cambios'}
-              </button>
+            <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={onSaveClick} style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                  {isCreating ? 'Guardar Nuevo Incidente' : 'Guardar Cambios'}
+                </button>
+                
+                <button onClick={handleSaveAsTemplate} style={{ backgroundColor: '#8b5cf6', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                  💾 Guardar como Plantilla
+                </button>
+              </div>
+
               {isCreating ? (
                 <button onClick={() => { setIsCreating(false); setErrors({}); if (incidents.length > 0) setSelectedIncident(incidents[0]); }} style={{ padding: '8px 16px', border: '1px solid #e2e8f0', background: 'transparent', borderRadius: '6px', cursor: 'pointer' }}>
                   Cancelar
@@ -280,7 +337,6 @@ export default function IncidentManagementPage() {
         onSetCurrentEndTimeFirst={handleSetCurrentEndTimeFirstService}
       />
 
-      {/* 🟢 NOTIFICACIÓN FLOTANTE (TOAST) NO INTRUSIVA */}
       {toast && (
         <div style={{
           position: 'fixed',
