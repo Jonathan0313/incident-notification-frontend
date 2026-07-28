@@ -4,7 +4,7 @@ import type { Service } from '../domain/service';
 import { incidentService } from '../services/incidentService';
 import { getIconForAffectation, normalizeAffectationType, validateDateFormat, getCurrentFormattedDate } from '../utils/incidentHelpers';
 
-export function useIncidentForm(selectedIncident: Incident | null, onIncidentSaved: () => void) {
+export function useIncidentForm(selectedIncident: Incident | null, onIncidentSaved: () => void, showToast?: (type: 'success' | 'error', defaultMessage: string, errorObj?: any) => void) {
   const [isCreating, setIsCreating] = useState(false);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [formData, setFormData] = useState<Incident | null>(null);
@@ -125,6 +125,9 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
         onIncidentSaved();
       } catch (error) {
         console.error('Error en el autoguardado:', error);
+        if (showToast) {
+          showToast('error', 'Error al autoguardar los cambios en el servidor.', error);
+        }
       } finally {
         setIsSaving(false);
       }

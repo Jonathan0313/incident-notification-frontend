@@ -93,9 +93,18 @@ export default function ServiceManagementPage() {
       }
       fetchAllServices();
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al guardar el servicio:', error);
-      showToast('error', 'Ocurrió un error al guardar el servicio');
+      
+      // Extracción del mensaje real del backend (Ej: código repetido)
+      const backendMessage = 
+        error?.response?.data?.message || 
+        error?.response?.data?.error || 
+        (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+        error?.message || 
+        'Ocurrió un error al guardar el servicio';
+
+      showToast('error', backendMessage);
     }
   };
 
@@ -117,7 +126,17 @@ export default function ServiceManagementPage() {
               onChange={(e) => setFormData({ ...formData, code: e.target.value })}
               placeholder="Ej. S4"
               required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '4px', boxSizing: 'border-box' }}
+              disabled={selectedService !== null} // 🟢 BLOQUEADO AL EDITAR
+              style={{ 
+                width: '100%', 
+                padding: '8px', 
+                borderRadius: '4px', 
+                border: '1px solid var(--border-color)', 
+                marginTop: '4px', 
+                boxSizing: 'border-box',
+                backgroundColor: selectedService !== null ? '#f1f5f9' : '#fff', // Fondo grisáceo si está deshabilitado
+                cursor: selectedService !== null ? 'not-allowed' : 'text'
+              }}
             />
           </div>
 
@@ -229,7 +248,7 @@ export default function ServiceManagementPage() {
         )}
       </div>
 
-      {/* 🟢 NOTIFICACIÓN FLOTANTE (TOAST) EN VEZ DE ALERT */}
+      {/* NOTIFICACIÓN FLOTANTE (TOAST) */}
       {toast && (
         <div style={{
           position: 'fixed',

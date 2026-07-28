@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Incident } from '../domain/incident';
 import { incidentService } from '../services/incidentService';
 
-export function useIncidentList() {
+export function useIncidentList(showToast?: (type: 'success' | 'error', defaultMessage: string, errorObj?: any) => void) {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -54,6 +54,9 @@ export function useIncidentList() {
       }
     } catch (error) {
       console.error('Error al cargar los incidentes:', error);
+      if (showToast) {
+        showToast('error', 'No se pudieron cargar los incidentes desde el servidor.', error);
+      }
     } finally {
       setLoading(false);
     }

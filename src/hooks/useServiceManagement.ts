@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import type { Service } from '../domain/service';
 import { serviceService } from '../services/serviceService';
 
-export function useServiceManagement() {
+export function useServiceManagement(
+  showToast?: (type: 'success' | 'error', defaultMessage: string, errorObj?: any) => void
+) {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -45,8 +47,12 @@ export function useServiceManagement() {
         setIsSaving(true);
         await serviceService.updateService(formData.code, formData);
         fetchAllServices(true);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error silencioso en autoguardado:', error);
+        if (showToast) {
+          const backendMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message;
+          showToast('error', backendMsg || 'Error al autoguardar los cambios del servicio.', error);
+        }
       } finally {
         setIsSaving(false);
       }
@@ -71,8 +77,12 @@ export function useServiceManagement() {
       const data = await serviceService.getAllServices();
       setServices(data);
       if (!silent) setSearchCode('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al cargar servicios:', error);
+      if (showToast && !silent) {
+        const backendMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message;
+        showToast('error', backendMsg || 'No se pudieron cargar los servicios desde el servidor.', error);
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -89,9 +99,13 @@ export function useServiceManagement() {
       setLoading(true);
       const data = await serviceService.getServiceByCode(searchCode.trim());
       setServices(data ? [data] : []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('No se encontró el servicio:', error);
       setServices([]);
+      if (showToast) {
+        const backendMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message;
+        showToast('error', backendMsg || 'Error al buscar el servicio por código.', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -108,9 +122,16 @@ export function useServiceManagement() {
         resetForm();
       }
       await fetchAllServices(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error controlado al guardar:', error);
-      throw error; // Propaga el error para que la página muestre el Toast rojo en lugar de un alert
+      
+      // 🟢 EXTRACCIÓN DIRECTA: Obtenemos el mensaje real del backend (Ej: "El código ya existe")
+      if (showToast) {
+        const backendMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message;
+        showToast('error', backendMsg || 'Error al guardar el servicio.', error);
+      }
+
+      throw error; // Mantenemos la propagación por si la vista principal también lo necesita
     } finally {
       setIsSaving(false);
     }
