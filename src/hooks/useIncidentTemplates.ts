@@ -51,7 +51,6 @@ export function useIncidentTemplates({
       .toLowerCase();
   };
 
-  // Guardar un incidente actual como una nueva plantilla
   const handleSaveAsTemplate = async () => {
     if (!formData) return;
 
@@ -72,16 +71,15 @@ export function useIncidentTemplates({
       showToast('success', '¡Plantilla guardada exitosamente!');
       await fetchTemplates();
     } catch (error: any) {
-      // 🟢 Aquí capturamos el mensaje exacto que lanza el servicio
       const backendMsg = error?.message || 'Error al guardar la plantilla.';
       showToast('error', backendMsg, error);
     }
   };
 
-  // Actualizar una plantilla existente
   const handleUpdateTemplate = async () => {
-    if (!formData || !formData.id) {
-      showToast('error', 'Selecciona una plantilla válida para actualizar.');
+    // 🟢 VALIDACIÓN ESTRICTA: Verificamos tanto formData como si tiene un ID real
+    if (!formData || !formData.id || String(formData.id).trim() === '') {
+      showToast('error', 'Selecciona uno');
       return;
     }
 
@@ -107,7 +105,6 @@ export function useIncidentTemplates({
     }
   };
 
-  // Eliminar una plantilla
   const handleDeleteTemplate = async () => {
     if (!selectedIncident || !selectedIncident.id) {
       showToast('error', 'Selecciona una plantilla para eliminar.');

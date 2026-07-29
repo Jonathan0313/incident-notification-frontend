@@ -11,15 +11,12 @@ interface IncidentFormContentProps {
   dropdownTemplates: any[];
   setFormData: (data: any) => void;
   normalizeText: (str: string) => void;
-  // Handlers de servicios
   handleAddAffectedService: () => void;
   handleDeleteAffectedService: (index: number) => void;
   handleAffectedServiceChange: (index: number, field: string, value: string) => void;
-  // Handlers de comentarios
   handleAddComment: () => void;
   handleDeleteComment: (index: number) => void;
   handleCommentChange: (index: number, text: string) => void;
-  // Handlers de botones principales
   onSaveClick: () => void;
   onCloseClick: () => void;
   handleUpdateTemplate: () => void;
@@ -53,6 +50,9 @@ export const IncidentFormContent: React.FC<IncidentFormContentProps> = ({
   handleDeleteTemplate,
   onCancelCreate,
 }) => {
+  // Verificamos si realmente hay un ID válido seleccionado
+  const hasValidId = formData && formData.id && String(formData.id).trim() !== '';
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', marginBottom: '15px' }}>
@@ -219,7 +219,21 @@ export const IncidentFormContent: React.FC<IncidentFormContentProps> = ({
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {filterType === 'templates' ? (
             <>
-              <button onClick={handleUpdateTemplate} style={{ backgroundColor: '#2563eb', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+              {/* 🟢 Botón con bloqueo visual si no hay ID seleccionado */}
+              <button 
+                onClick={handleUpdateTemplate} 
+                disabled={!hasValidId}
+                style={{ 
+                  backgroundColor: !hasValidId ? '#94a3b8' : '#2563eb', 
+                  color: 'white', 
+                  padding: '8px 16px', 
+                  border: 'none', 
+                  borderRadius: '6px', 
+                  cursor: !hasValidId ? 'not-allowed' : 'pointer', 
+                  fontWeight: 600,
+                  opacity: !hasValidId ? 0.7 : 1
+                }}
+              >
                 Actualizar Plantilla
               </button>
               {!isCreating && (

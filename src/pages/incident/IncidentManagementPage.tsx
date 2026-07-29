@@ -43,10 +43,19 @@ export default function IncidentManagementPage() {
   } = useIncidentForm(selectedIncident, refreshCurrentList, showToast);
 
   const {
-    templates, dropdownTemplates, handleSaveAsTemplate, handleUpdateTemplate, handleDeleteTemplate, normalizeText
+    templates, dropdownTemplates, handleSaveAsTemplate, handleUpdateTemplate: originalHandleUpdateTemplate, handleDeleteTemplate, normalizeText
   } = useIncidentTemplates({
     formData, selectedIncident, filterType, setFilterType, setIsCreating, setFormData, setSelectedIncident, refreshCurrentList, showToast,
   });
+
+  // 🟢 Versión segura interceptada con validación estricta de ID
+  const handleUpdateTemplate = async () => {
+    if (!formData || !formData.id || String(formData.id).trim() === '') {
+      showToast('error', 'Selecciona uno');
+      return;
+    }
+    await originalHandleUpdateTemplate();
+  };
 
   const onSaveClick = async () => {
     try {
@@ -201,8 +210,20 @@ export default function IncidentManagementPage() {
         loading={loading}
         filterType={filterType}
         onSelectIncident={(inc) => { setSelectedIncident(inc); setIsCreating(false); }}
-        onStartCreate={() => handleStartCreate()}
-        onFilterChange={setFilterType}
+        onStartCreate={() => {
+          handleStartCreate();
+          // Limpiamos explícitamente el ID al crear para evitar datos residuales
+          if (formData) {
+            setFormData({ ...formData, id: '' as any });
+          }
+        }}
+        onFilterChange={(tab) => {
+          setFilterType(tab);
+          // Limpiamos ID al cambiar de pestaña
+          if (formData) {
+            setFormData({ ...formData, id: '' as any });
+          }
+        }}
       />
 
       <div style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: '8px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowY: 'auto' }}>

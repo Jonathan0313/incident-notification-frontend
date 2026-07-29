@@ -45,12 +45,16 @@ export const incidentService = {
       const response = await axiosClient.post('/v1/api/notifications', formData);
       return response.data;
     } catch (error) {
-      // 🟢 Aquí se captura el error 400 y se procesa el mensaje del backend
       return handleAxiosError(error, 'Error al crear el incidente');
     }
   },
 
   updateIncident: async (id: string | number, formData: Incident) => {
+    // 🟢 VALIDACIÓN OBLIGATORIA: Si no hay ID o está vacío, lanzamos el error antes de llamar a Axios
+    if (!id || String(id).trim() === '') {
+      throw new Error('Selecciona uno');
+    }
+
     try {
       const response = await axiosClient.put(`/v1/api/notifications/${id}`, formData);
       return response.data;
@@ -60,6 +64,10 @@ export const incidentService = {
   },
 
   closeIncident: async (id: string | number, dataToClose: Incident) => {
+    if (!id || String(id).trim() === '') {
+      throw new Error('Selecciona uno');
+    }
+
     try {
       const response = await axiosClient.put(`/v1/api/notifications/${id}/close`, dataToClose);
       return response.data;
