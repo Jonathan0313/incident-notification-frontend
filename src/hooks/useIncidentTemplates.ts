@@ -1,6 +1,18 @@
 import { useState, useEffect } from 'react';
-import { notificationTemplateService } from '../services/notificationTemplateService';
-import { templateService } from '../services/templateService';
+import type { Incident } from '../domain/incident';
+import { notificationTemplateService, type NotificationTemplate } from '../services/notificationTemplateService';
+
+interface UseIncidentTemplatesProps {
+  formData: Incident | null;
+  selectedIncident: Incident | null;
+  filterType: string;
+  setFilterType: (type: string) => void;
+  setIsCreating: (isCreating: boolean) => void;
+  setFormData: (data: Incident | null) => void;
+  setSelectedIncident: (incident: Incident | null) => void;
+  refreshCurrentList: (status?: string, targetTab?: string) => Promise<any>;
+  showToast: (type: 'success' | 'error', message: string, errorObj?: any) => void;
+}
 
 export function useIncidentTemplates({
   formData,
@@ -12,129 +24,112 @@ export function useIncidentTemplates({
   setSelectedIncident,
   refreshCurrentList,
   showToast,
-}: any) {
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [dropdownTemplates, setDropdownTemplates] = useState<any[]>([]);
+}: UseIncidentTemplatesProps) {
+  const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
+  const [dropdownTemplates, setDropdownTemplates] = useState<NotificationTemplate[]>([]);
 
-  useEffect(() => {
-    fetchDropdownTemplates();
-  }, []);
-
-  useEffect(() => {
-    if (filterType === 'templates') {
-      loadTemplatesSidebar();
-    }
-  }, [filterType]);
-
-  const fetchDropdownTemplates = async () => {
-    try {
-      const data = await templateService.getAll();
-      setDropdownTemplates(data || []);
-    } catch (error) {
-      console.error('Error al cargar plantillas para los desplegables', error);
-    }
-  };
-
-  const loadTemplatesSidebar = async () => {
+  const fetchTemplates = async () => {
     try {
       const data = await notificationTemplateService.getAll();
-      const mapped = (data || []).map((t: any) => ({
-        id: t.id || '',
-        name: t.name,
-        typeTemplate: t.typeTemplate,
-        messageTemplate: t.messageTemplate,
-        impact: t.impact || '',
-        functionality: t.functionality || 'General',
-        jira: t.jira || '',
-        partnerCase: t.partnerCase || '',
-        affectedComponent: t.affectedComponent || '',
-        description: t.description || '',
-        resolution: t.resolution || '',
-        affectedServices: t.affectedServices || [],
-        comments: [],
-        status: 'TEMPLATE',
-        createdAt: t.createdAt || new Date().toISOString()
-      }));
-      setTemplates(mapped);
-    } catch (error) {
-      showToast('error', 'No se pudieron cargar las plantillas de la barra lateral.');
+      setTemplates(data || []);
+      setDropdownTemplates(data || []);
+    } catch (error: any) {
+      const backendMsg = error?.message || 'Error al cargar las plantillas.';
+      showToast('error', backendMsg, error);
     }
   };
 
-  const handleSaveAsTemplate = async () => {
-    if (!formData) return;
-    try {
-      const templatePayload = {
-        name: formData.name,
-        impact: formData.impact,
-        functionality: formData.functionality || 'General',
-        jira: formData.jira,
-        partnerCase: formData.partnerCase,
-        affectedComponent: formData.affectedComponent,
-        description: formData.description,
-        resolution: formData.resolution,
-        affectedServices: (formData.affectedServices || []).map((s: any) => ({
-          code: s.code,
-          nameService: s.nameService,
-          status: s.status,
-          startTime: s.startTime,
-          endTime: s.endTime
-        }))
-      };
-
-      await notificationTemplateService.create(templatePayload);
-      showToast('success', '¡Plantilla guardada exitosamente!');
-      if (filterType === 'templates') loadTemplatesSidebar();
-    } catch (error) {
-      showToast('error', 'Error al guardar la plantilla en el servidor.');
-    }
-  };
-
-  const handleUpdateTemplate = async () => {
-    if (!selectedIncident || !selectedIncident.id) return;
-    try {
-      const templatePayload = {
-        name: formData.name,
-        impact: formData.impact,
-        functionality: formData.functionality || 'General',
-        jira: formData.jira,
-        partnerCase: formData.partnerCase,
-        affectedComponent: formData.affectedComponent,
-        description: formData.description,
-        resolution: formData.resolution,
-        affectedServices: (formData.affectedServices || []).map((s: any) => ({
-          code: s.code,
-          nameService: s.nameService,
-          status: s.status,
-          startTime: s.startTime,
-          endTime: s.endTime
-        }))
-      };
-
-      await notificationTemplateService.update(selectedIncident.id, templatePayload);
-      showToast('success', '¡Plantilla actualizada exitosamente!');
-      if (filterType === 'templates') loadTemplatesSidebar();
-    } catch (error) {
-      showToast('error', 'Error al actualizar la plantilla.');
-    }
-  };
-
-  const handleDeleteTemplate = async () => {
-    if (!selectedIncident || !selectedIncident.id) return;
-    if (!window.confirm('¿Estás seguro de que deseas eliminar esta plantilla?')) return;
-    
-    try {
-      await notificationTemplateService.delete(selectedIncident.id);
-      showToast('success', 'Plantilla eliminada exitosamente.');
-      loadTemplatesSidebar();
-      setSelectedIncident(null);
-    } catch (error) {
-      showToast('error', 'Error al eliminar la plantilla.');
-    }
-  };
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
 
   const normalizeText = (str: string) => {
-    return str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";
+    if (!str) return '';
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  };
+
+  // Guardar un incidente actual como una nueva plantilla
+  const handleSaveAsTemplate = async () => {
+    if (!formData) return;
+
+    try {
+      const templateData: NotificationTemplate = {
+        name: formData.name || 'Nueva Plantilla',
+        impact: formData.impact || '',
+        functionality: (formData as any).functionality || 'Ok',
+        jira: formData.jira || '',
+        partnerCase: formData.partnerCase || '',
+        affectedComponent: (formData as any).affectedComponent || '',
+        description: formData.description || '',
+        resolution: formData.resolution || '',
+        affectedServices: (formData as any).affectedServices || [],
+      };
+
+      await notificationTemplateService.create(templateData);
+      showToast('success', '¡Plantilla guardada exitosamente!');
+      await fetchTemplates();
+    } catch (error: any) {
+      // 🟢 Aquí capturamos el mensaje exacto que lanza el servicio
+      const backendMsg = error?.message || 'Error al guardar la plantilla.';
+      showToast('error', backendMsg, error);
+    }
+  };
+
+  // Actualizar una plantilla existente
+  const handleUpdateTemplate = async () => {
+    if (!formData || !formData.id) {
+      showToast('error', 'Selecciona una plantilla válida para actualizar.');
+      return;
+    }
+
+    try {
+      const templateData: NotificationTemplate = {
+        name: formData.name || '',
+        impact: formData.impact || '',
+        functionality: (formData as any).functionality || 'Ok',
+        jira: formData.jira || '',
+        partnerCase: formData.partnerCase || '',
+        affectedComponent: (formData as any).affectedComponent || '',
+        description: formData.description || '',
+        resolution: formData.resolution || '',
+        affectedServices: (formData as any).affectedServices || [],
+      };
+
+      await notificationTemplateService.update(formData.id.toString(), templateData);
+      showToast('success', 'Plantilla actualizada exitosamente.');
+      await fetchTemplates();
+    } catch (error: any) {
+      const backendMsg = error?.message || 'Error al actualizar la plantilla.';
+      showToast('error', backendMsg, error);
+    }
+  };
+
+  // Eliminar una plantilla
+  const handleDeleteTemplate = async () => {
+    if (!selectedIncident || !selectedIncident.id) {
+      showToast('error', 'Selecciona una plantilla para eliminar.');
+      return;
+    }
+
+    if (!window.confirm('¿Estás seguro de eliminar esta plantilla?')) return;
+
+    try {
+      await notificationTemplateService.delete(selectedIncident.id.toString());
+      showToast('success', 'Plantilla eliminada exitosamente.');
+      
+      setIsCreating(false);
+      setFormData(null);
+      setSelectedIncident(null);
+      setFilterType('open');
+      await refreshCurrentList(undefined, 'open');
+      await fetchTemplates();
+    } catch (error: any) {
+      const backendMsg = error?.message || 'Error al eliminar la plantilla.';
+      showToast('error', backendMsg, error);
+    }
   };
 
   return {
@@ -143,6 +138,7 @@ export function useIncidentTemplates({
     handleSaveAsTemplate,
     handleUpdateTemplate,
     handleDeleteTemplate,
-    normalizeText
+    normalizeText,
+    refreshTemplates: fetchTemplates,
   };
 }

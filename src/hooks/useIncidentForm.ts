@@ -110,6 +110,7 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     }
   }, [selectedIncident, isCreating]);
 
+  // Autoguardado silencioso con extracción de error robusta
   useEffect(() => {
     if (!formData || isCreating || !formData.id) return;
 
@@ -123,10 +124,17 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
         setIsSaving(true);
         await incidentService.updateIncident(formData.id, formData);
         onIncidentSaved();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error en el autoguardado:', error);
         if (showToast) {
-          showToast('error', 'Error al autoguardar los cambios en el servidor.', error);
+          const backendMsg = 
+            (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+            error?.response?.data?.message || 
+            error?.response?.data?.error || 
+            error?.message || 
+            'Error al autoguardar los cambios en el servidor.';
+
+          showToast('error', backendMsg, error);
         }
       } finally {
         setIsSaving(false);

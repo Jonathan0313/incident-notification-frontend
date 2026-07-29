@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:8080/v1/api/notification-templates';
+import { axiosClient } from './axiosClient';
 
 export interface ServiceImpactDto {
   code: string;
@@ -23,39 +23,60 @@ export interface NotificationTemplate {
   createdAt?: string;
 }
 
+// 🟢 Extractor universal de errores de Axios y del Backend
+const extractBackendError = (error: any, defaultMsg: string): never => {
+  const data = error?.response?.data;
+  
+  let errorMessage = '';
+
+  if (typeof data === 'string') {
+    errorMessage = data; // Si el backend responde con un texto plano (ej: "El nombre ya existe")
+  } else if (data && typeof data === 'object') {
+    errorMessage = data.message || data.error || data.mensaje || data.details;
+  }
+
+  if (!errorMessage) {
+    errorMessage = error?.message || defaultMsg;
+  }
+
+  // Lanzamos un error limpio que ya lleva el texto exacto del servidor
+  throw new Error(errorMessage);
+};
+
 export const notificationTemplateService = {
   async getAll(): Promise<NotificationTemplate[]> {
-    const response = await fetch(API_URL);
-    if (!response.ok) throw new Error('Error al obtener las plantillas');
-    return response.json();
+    try {
+      const response = await axiosClient.get('/v1/api/notification-templates');
+      const rawData = response.data;
+      return Array.isArray(rawData) ? rawData : (rawData?.content || rawData?.data || []);
+    } catch (error) {
+      extractBackendError(error, 'Error al obtener las plantillas');
+    }
   },
 
   async create(template: NotificationTemplate): Promise<NotificationTemplate> {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(template),
-    });
-    if (!response.ok) throw new Error('Error al guardar la plantilla');
-    return response.json();
+    try {
+      const response = await axiosClient.post('/v1/api/notification-templates', template);
+      return response.data;
+    } catch (error) {
+      extractBackendError(error, 'Error al guardar la plantilla');
+    }
   },
 
-  // 🔄 NUEVO: Actualizar plantilla existente
   async update(id: string, template: NotificationTemplate): Promise<NotificationTemplate> {
-    const response = await fetch(`${API_URL}/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(template),
-    });
-    if (!response.ok) throw new Error('Error al actualizar la plantilla');
-    return response.json();
+    try {
+      const response = await axiosClient.put(`/v1/api/notification-templates/${id}`, template);
+      return response.data;
+    } catch (error) {
+      extractBackendError(error, 'Error al actualizar la plantilla');
+    }
   },
 
-  // 🗑️ NUEVO: Eliminar plantilla por ID
   async delete(id: string): Promise<void> {
-    const response = await fetch(`${API_URL}/${id}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) throw new Error('Error al eliminar la plantilla');
+    try {
+      await axiosClient.delete(`/v1/api/notification-templates/${id}`);
+    } catch (error) {
+      extractBackendError(error, 'Error al eliminar la plantilla');
+    }
   }
 };

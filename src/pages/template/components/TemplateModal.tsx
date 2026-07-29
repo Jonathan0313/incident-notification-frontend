@@ -18,6 +18,9 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
   const [name, setName] = useState('');
   const [messageTemplate, setMessageTemplate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  
+  // 🟢 Nuevo estado para guardar y mostrar el error en la interfaz
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (templateToEdit) {
@@ -29,6 +32,8 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
       setName('');
       setMessageTemplate('');
     }
+    // Limpiamos errores al abrir o cambiar de plantilla
+    setErrorMessage(null);
   }, [templateToEdit, isOpen]);
 
   if (!isOpen) return null;
@@ -36,10 +41,15 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setErrorMessage(null); // Limpiamos errores previos
+
     try {
       await onSave({ typeTemplate, name, messageTemplate });
-    } catch (err) {
-      // Manejo de errores
+      onClose(); // Cerramos el modal si todo sale bien
+    } catch (err: any) {
+      // 🟢 Extracción del mensaje exacto del backend (ej: "Ya existe una plantilla con este nombre...")
+      const backendMsg = err?.message || 'Error al guardar la plantilla.';
+      setErrorMessage(backendMsg);
     } finally {
       setSubmitting(false);
     }
@@ -51,6 +61,13 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
         <h2 className="text-xl font-bold mb-4">
           {templateToEdit ? 'Editar Plantilla' : 'Nueva Plantilla'}
         </h2>
+
+        {/* 🟢 Renderizado condicional de la alerta de error */}
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
+            {errorMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

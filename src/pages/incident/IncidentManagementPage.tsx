@@ -12,8 +12,22 @@ import { IncidentFormContent } from "./components/IncidentFormContent";
 export default function IncidentManagementPage() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const showToast = (type: 'success' | 'error', message: string) => {
-    setToast({ type, message });
+  const showToast = (type: 'success' | 'error', message: string, errorObj?: any) => {
+    let finalMessage = message;
+
+    if (errorObj) {
+      const backendMsg = 
+        (typeof errorObj?.response?.data === 'string' ? errorObj.response.data : null) ||
+        errorObj?.response?.data?.message || 
+        errorObj?.response?.data?.error || 
+        errorObj?.message;
+
+      if (backendMsg) {
+        finalMessage = backendMsg;
+      }
+    }
+
+    setToast({ type, message: finalMessage });
     setTimeout(() => { setToast(null); }, 3500);
   };
 
@@ -50,8 +64,14 @@ export default function IncidentManagementPage() {
       }
 
       showToast('success', wasCreating ? 'Nuevo incidente creado exitosamente.' : 'Cambios guardados exitosamente.');
-    } catch {
-      showToast('error', 'Ocurrió un error al guardar en el servidor.');
+    } catch (error: any) {      
+      const backendMessage = 
+        (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+        error?.response?.data?.message || 
+        error?.response?.data?.error || 
+        error?.message || 
+        'Error al crear el incidente.';
+      showToast('error', backendMessage, error);
     }
   };
 
@@ -60,8 +80,13 @@ export default function IncidentManagementPage() {
       await handleCloseIncident();
       showToast('success', 'Incidente cerrado exitosamente.');
     } catch (error: any) {
-      const backendMessage = error?.response?.data?.message || error?.message || 'Error al cerrar.';
-      showToast('error', backendMessage);
+      const backendMessage = 
+        (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+        error?.response?.data?.message || 
+        error?.response?.data?.error || 
+        error?.message || 
+        'Error al cerrar.';
+      showToast('error', backendMessage, error);
     }
   };
 
@@ -69,8 +94,14 @@ export default function IncidentManagementPage() {
     try {
       await handleCopyTemplate();
       showToast('success', '¡Plantilla copiada al portapapeles!');
-    } catch {
-      showToast('error', 'No se pudo copiar.');
+    } catch (error: any) {
+      const backendMessage = 
+        (typeof error?.response?.data === 'string' ? error?.response?.data : null) ||
+        error?.response?.data?.message || 
+        error?.response?.data?.error || 
+        error?.message || 
+        'No se pudo copiar.';
+      showToast('error', backendMessage, error);
     }
   };
 
@@ -90,17 +121,13 @@ export default function IncidentManagementPage() {
         affectedServices: sourceData.affectedServices || []
       };
 
-      // 1. Guardamos en el backend
       await incidentService.createIncident(newIncidentData);
 
-      // 2. Apagamos el modo creación y cambiamos a la pestaña 'open'
       setIsCreating(false);
       setFilterType('open');
 
-      // 3. Recargamos la lista y atrapamos los datos devueltos directamente
       const updatedList = await refreshCurrentList(undefined, 'open');
 
-      // 4. Forzamos la selección del primer elemento de inmediato
       if (updatedList && updatedList.length > 0) {
         setSelectedIncident(updatedList[0]);
         setFormData(updatedList[0] as any);
@@ -108,12 +135,16 @@ export default function IncidentManagementPage() {
 
       showToast('success', 'Incidente creado exitosamente desde la plantilla.');
     } catch (error: any) {
-      const backendMessage = error?.response?.data?.message || error?.message || 'Error al crear el incidente.';
-      showToast('error', backendMessage);
+      const backendMessage = 
+        (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+        error?.response?.data?.message || 
+        error?.response?.data?.error || 
+        error?.message || 
+        'Error al crear el incidente.';
+      showToast('error', backendMessage, error);
     }
   };
 
-  // Handlers para tablas locales
   const handleAddAffectedService = () => {
     if (!formData) return;
     const row = { status: '✅', code: '', nameService: '', affectationType: 'OK', startTime: '', endTime: '' };
