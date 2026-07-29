@@ -3,6 +3,8 @@ import { useIncidentList } from "../../hooks/useIncidentList";
 import { useIncidentForm } from "../../hooks/useIncidentForm";
 import { useIncidentTemplates } from "../../hooks/useIncidentTemplates";
 import { formatDateTimeIfNeeded, getIconForAffectation } from "../../utils/incidentHelpers";
+import { incidentService } from "../../services/incidentService";
+
 import { IncidentSidebarLeft } from "./components/IncidentSidebarLeft";
 import { IncidentSidebarRight } from "./components/IncidentSidebarRight";
 import { IncidentFormContent } from "./components/IncidentFormContent";
@@ -17,14 +19,14 @@ export default function IncidentManagementPage() {
 
   const {
     incidents, selectedIncident, loading, filterType, setFilterType, setSelectedIncident, refreshCurrentList,
-  } = useIncidentList();
+  } = useIncidentList(showToast);
 
   const {
     isCreating, availableServices, formData, errors, isSaving, setIsCreating, setFormData, setErrors,
     handleStartCreate, handleSaveAction, handleCloseIncident, handleCopyTemplate,
     handleApplyFirstStartTime, handleApplyFirstEndTime, handleApplyFirstAffectationType,
     handleSetCurrentStartTimeFirstService, handleSetCurrentEndTimeFirstService,
-  } = useIncidentForm(selectedIncident, refreshCurrentList);
+  } = useIncidentForm(selectedIncident, refreshCurrentList, showToast);
 
   const {
     templates, dropdownTemplates, handleSaveAsTemplate, handleUpdateTemplate, handleDeleteTemplate, normalizeText
@@ -34,8 +36,21 @@ export default function IncidentManagementPage() {
 
   const onSaveClick = async () => {
     try {
+      const wasCreating = isCreating;
+      const currentName = formData?.name;
+
       await handleSaveAction();
-      showToast('success', isCreating ? 'Nuevo incidente creado exitosamente.' : 'Cambios guardados exitosamente.');
+      
+      const updatedList = await refreshCurrentList();
+
+      if (wasCreating && updatedList && updatedList.length > 0) {
+        const createdIncident = updatedList.find((inc: any) => inc.name === currentName) || updatedList[0];
+        if (createdIncident) {
+          setSelectedIncident(createdIncident);
+        }
+      }
+
+      showToast('success', wasCreating ? 'Nuevo incidente creado exitosamente.' : 'Cambios guardados exitosamente.');
     } catch {
       showToast('error', 'Ocurrió un error al guardar en el servidor.');
     }
@@ -63,18 +78,42 @@ export default function IncidentManagementPage() {
   const handleStartOpenIncident = async () => {
     const sourceData = formData || selectedIncident;
     if (!sourceData) return showToast('error', 'Selecciona una plantilla primero.');
+    
     const { id, ...rest } = sourceData as any;
+    
     try {
-      setFilterType('active');
-      setIsCreating(true);
-      setFormData({ ...rest, id: undefined, name: sourceData.name || '', status: 'ACTIVE', comments: sourceData.comments || [] });
-      setTimeout(async () => {
-        await handleSaveAction();
-        await refreshCurrentList();
-        showToast('success', 'Incidente creado exitosamente.');
-      }, 50);
+      // 1. Preparamos el objeto limpio basado en la plantilla con status ACTIVE
+      const newIncidentData = {
+        ...rest,
+        id: undefined,
+        name: sourceData.name || '',
+        status: 'ACTIVE',
+        comments: sourceData.comments || [],
+        affectedServices: sourceData.affectedServices || []
+      };
+
+      // 2. Creamos el incidente en el backend y obtenemos su respuesta/ID nuevo
+      const createdResponse = await incidentService.createIncident(newIncidentData);
+      const newId = createdResponse?.id || (createdResponse as any)?.data?.id;
+
+      setIsCreating(false);
+
+      // 3. Forzamos la vista a los casos abiertos y actualizamos la lista seleccionando el nuevo ID
+      setFilterType('open');
+      const updatedList = await refreshCurrentList(newId);
+
+      // 4. Doble seguridad para asegurarnos de que quede seleccionado el nuevo
+      if (newId && updatedList && updatedList.length > 0) {
+        const justCreated = updatedList.find((inc: any) => inc.id === newId);
+        if (justCreated) {
+          setSelectedIncident(justCreated);
+        }
+      }
+
+      showToast('success', 'Incidente creado exitosamente desde la plantilla.');
     } catch (error: any) {
-      showToast('error', error?.message || 'Error al crear el incidente.');
+      const backendMessage = error?.response?.data?.message || error?.message || 'Error al crear el incidente.';
+      showToast('error', backendMessage);
     }
   };
 
@@ -135,7 +174,7 @@ export default function IncidentManagementPage() {
         loading={loading}
         filterType={filterType}
         onSelectIncident={(inc) => { setSelectedIncident(inc); setIsCreating(false); }}
-        onStartCreate={handleStartCreate}
+        onStartCreate={() => handleStartCreate()}
         onFilterChange={setFilterType}
       />
 

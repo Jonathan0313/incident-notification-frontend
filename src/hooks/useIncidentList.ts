@@ -7,14 +7,13 @@ export function useIncidentList(showToast?: (type: 'success' | 'error', defaultM
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   
-  // Estado para controlar el filtro actual ('open' o 'closed_recent')
   const [filterType, setFilterType] = useState<'open' | 'closed_recent'>('open');
 
   useEffect(() => {
     fetchIncidentsByType(filterType);
   }, [filterType]);
 
-  const fetchIncidentsByType = async (type: 'open' | 'closed_recent') => {
+  const fetchIncidentsByType = async (type: 'open' | 'closed_recent', targetId?: string | number) => {
     try {
       setLoading(true);
       let data: Incident[] = [];
@@ -25,24 +24,17 @@ export function useIncidentList(showToast?: (type: 'success' | 'error', defaultM
         data = await incidentService.getRecentClosedIncidents();
       }
 
-      // Ordenamiento base por ID descendiente
       data.sort((a, b) => Number(b.id) - Number(a.id));
-
-      // 🟢 TRUCO CLAVE: Si hay un incidente seleccionado actualmente, 
-      // lo sacamos de la lista y lo ponemos obligatoriamente de primero para que no baje de posición.
-      if (selectedIncident) {
-        const currentId = selectedIncident.id;
-        const index = data.findIndex(inc => inc.id === currentId);
-        if (index !== -1) {
-          const [foundItem] = data.splice(index, 1);
-          data.unshift(foundItem); // Lo coloca siempre en la cima visual de la lista izquierda
-        }
-      }
 
       setIncidents(data);
 
       if (data.length > 0) {
-        if (selectedIncident) {
+        // 🟢 Si nos pasan un ID objetivo (como el del nuevo incidente), lo seleccionamos de inmediato.
+        // Si no, respetamos el comportamiento anterior.
+        if (targetId !== undefined) {
+          const foundTarget = data.find(inc => inc.id === targetId);
+          setSelectedIncident(foundTarget || data[0]);
+        } else if (selectedIncident) {
           const currentId = selectedIncident.id;
           const found = data.find(inc => inc.id === currentId);
           setSelectedIncident(found || data[0]);
@@ -52,18 +44,22 @@ export function useIncidentList(showToast?: (type: 'success' | 'error', defaultM
       } else {
         setSelectedIncident(null);
       }
+      
+      return data;
     } catch (error) {
       console.error('Error al cargar los incidentes:', error);
       if (showToast) {
         showToast('error', 'No se pudieron cargar los incidentes desde el servidor.', error);
       }
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
-  const refreshCurrentList = () => {
-    fetchIncidentsByType(filterType);
+  // 🟢 Permitimos recibir un ID opcional para forzar la selección
+  const refreshCurrentList = async (targetId?: string | number) => {
+    return await fetchIncidentsByType(filterType, targetId);
   };
 
   return {
