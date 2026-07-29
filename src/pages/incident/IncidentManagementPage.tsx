@@ -37,17 +37,16 @@ export default function IncidentManagementPage() {
   const onSaveClick = async () => {
     try {
       const wasCreating = isCreating;
-      const currentName = formData?.name;
 
       await handleSaveAction();
       
-      const updatedList = await refreshCurrentList();
+      setIsCreating(false);
+      setFilterType('open');
+
+      const updatedList = await refreshCurrentList(undefined, 'open');
 
       if (wasCreating && updatedList && updatedList.length > 0) {
-        const createdIncident = updatedList.find((inc: any) => inc.name === currentName) || updatedList[0];
-        if (createdIncident) {
-          setSelectedIncident(createdIncident);
-        }
+        setSelectedIncident(updatedList[0]);
       }
 
       showToast('success', wasCreating ? 'Nuevo incidente creado exitosamente.' : 'Cambios guardados exitosamente.');
@@ -82,7 +81,6 @@ export default function IncidentManagementPage() {
     const { id, ...rest } = sourceData as any;
     
     try {
-      // 1. Preparamos el objeto limpio basado en la plantilla con status ACTIVE
       const newIncidentData = {
         ...rest,
         id: undefined,
@@ -92,22 +90,20 @@ export default function IncidentManagementPage() {
         affectedServices: sourceData.affectedServices || []
       };
 
-      // 2. Creamos el incidente en el backend y obtenemos su respuesta/ID nuevo
-      const createdResponse = await incidentService.createIncident(newIncidentData);
-      const newId = createdResponse?.id || (createdResponse as any)?.data?.id;
+      // 1. Guardamos en el backend
+      await incidentService.createIncident(newIncidentData);
 
+      // 2. Apagamos el modo creación y cambiamos a la pestaña 'open'
       setIsCreating(false);
-
-      // 3. Forzamos la vista a los casos abiertos y actualizamos la lista seleccionando el nuevo ID
       setFilterType('open');
-      const updatedList = await refreshCurrentList(newId);
 
-      // 4. Doble seguridad para asegurarnos de que quede seleccionado el nuevo
-      if (newId && updatedList && updatedList.length > 0) {
-        const justCreated = updatedList.find((inc: any) => inc.id === newId);
-        if (justCreated) {
-          setSelectedIncident(justCreated);
-        }
+      // 3. Recargamos la lista y atrapamos los datos devueltos directamente
+      const updatedList = await refreshCurrentList(undefined, 'open');
+
+      // 4. Forzamos la selección del primer elemento de inmediato
+      if (updatedList && updatedList.length > 0) {
+        setSelectedIncident(updatedList[0]);
+        setFormData(updatedList[0] as any);
       }
 
       showToast('success', 'Incidente creado exitosamente desde la plantilla.');

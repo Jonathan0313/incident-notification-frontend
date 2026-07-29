@@ -24,19 +24,29 @@ export function useIncidentList(showToast?: (type: 'success' | 'error', defaultM
         data = await incidentService.getRecentClosedIncidents();
       }
 
+      // 1. Ordenamiento base descendiente por ID
       data.sort((a, b) => Number(b.id) - Number(a.id));
+
+      // 2. Si hay un ID objetivo (creado o editado), lo priorizamos y movemos al inicio
+      const idToPrioritize = targetId !== undefined ? targetId : selectedIncident?.id;
+
+      if (idToPrioritize !== undefined && idToPrioritize !== null) {
+        const index = data.findIndex(inc => inc.id == idToPrioritize);
+        if (index !== -1) {
+          const [prioritizedItem] = data.splice(index, 1);
+          data.unshift(prioritizedItem); // <--- Lo colocamos estrictamente de primeras
+        }
+      }
 
       setIncidents(data);
 
       if (data.length > 0) {
-        // 🟢 Si nos pasan un ID objetivo (como el del nuevo incidente), lo seleccionamos de inmediato.
-        // Si no, respetamos el comportamiento anterior.
         if (targetId !== undefined) {
-          const foundTarget = data.find(inc => inc.id === targetId);
+          const foundTarget = data.find(inc => inc.id == targetId);
           setSelectedIncident(foundTarget || data[0]);
         } else if (selectedIncident) {
           const currentId = selectedIncident.id;
-          const found = data.find(inc => inc.id === currentId);
+          const found = data.find(inc => inc.id == currentId);
           setSelectedIncident(found || data[0]);
         } else {
           setSelectedIncident(data[0]);
@@ -57,9 +67,9 @@ export function useIncidentList(showToast?: (type: 'success' | 'error', defaultM
     }
   };
 
-  // 🟢 Permitimos recibir un ID opcional para forzar la selección
-  const refreshCurrentList = async (targetId?: string | number) => {
-    return await fetchIncidentsByType(filterType, targetId);
+  const refreshCurrentList = async (targetId?: string | number, forcedType?: 'open' | 'closed_recent') => {
+    const typeToUse = forcedType || filterType;
+    return await fetchIncidentsByType(typeToUse, targetId);
   };
 
   return {
