@@ -224,9 +224,6 @@ export function useIncidentManagement() {
     setAffectedServices(updated);
   };
 
-  // ==========================================
-  // FUNCIÓN CORREGIDA Y ROBUSTA PARA IGUALAR
-  // ==========================================
   const handleMatchEndTimeWithStartTime = () => {
     setAffectedServices(prevServices => {
       if (!prevServices || prevServices.length === 0) return prevServices;
@@ -241,6 +238,63 @@ export function useIncidentManagement() {
       
       return updated;
     });
+  };
+
+  // ==========================================
+  // FUNCIÓN PARA COPIAR PLANTILLA AL PORTAPAPELES
+  // ==========================================
+  const handleCopyTemplate = async () => {
+    try {
+      let servicesText = "Servicios Afectados:\n";
+      if (affectedServices && affectedServices.length > 0) {
+        affectedServices.forEach((srv) => {
+          const isOk = srv.status === 'OK' || srv.status === true;
+          const statusSymbol = isOk ? "✔" : "⚠️";
+          servicesText += `- ${statusSymbol} Servicio: ${srv.nameService || srv.name || 'N/A'} | Estado: ${srv.status || 'OK'} | Inicio: ${srv.startTime || ''} | Fin: ${srv.endTime || ''}\n`;
+        });
+      } else {
+        servicesText += "Ninguno\n";
+      }
+
+      const impactText = formData.impact ? `Impacto A Usuarios: ${formData.impact}\n` : '';
+      const functionalityText = formData.functionality ? `Funcionalidades OK: ${formData.functionality}\n` : '';
+      const jiraText = formData.jira ? `Jira: ${formData.jira}\n` : '';
+      const caseText = (formData.partnerCase || formData.aliasedCase) ? `Caso Aliado: ${formData.partnerCase || formData.aliasedCase}\n` : '';
+      const componentText = formData.affectedComponent ? `Componente Afectado: ${formData.affectedComponent}\n` : '';
+      const descriptionText = formData.description ? `Descripción de la falla: ${formData.description}\n` : '';
+
+      let advancesText = '';
+      const rawAdvances = formData.advances || formData.comments || formData.updates || [];
+      if (Array.isArray(rawAdvances) && rawAdvances.length > 0) {
+        const validAdvances = rawAdvances.filter((adv: any) => (adv.content || adv.message || '').trim() !== '');
+        if (validAdvances.length > 0) {
+          advancesText += '\n';
+          validAdvances.forEach((adv: any, idx: number) => {
+            const content = adv.content || adv.message || '';
+            advancesText += `• Avance ${idx + 1}: ${content}\n`;
+          });
+        }
+      }
+
+      const solutionValue = formData.solution || formData.resolution || '';
+      const solutionText = solutionValue.trim() !== '' ? `\nSolución: ${solutionValue}\n` : '';
+
+      const fullTemplateString = 
+        `${servicesText}\n` +
+        `${impactText}` +
+        `${functionalityText}` +
+        `${jiraText}` +
+        `${caseText}` +
+        `${componentText}` +
+        `${descriptionText}` +
+        `${advancesText}` +
+        `${solutionText}`;
+
+      await navigator.clipboard.writeText(fullTemplateString);
+      showToast('success', '¡Plantilla copiada al portapapeles!');
+    } catch (err) {
+      showToast('error', 'No se pudo copiar la plantilla.');
+    }
   };
 
   const buildUnifiedPayload = (customFields = {}) => {
@@ -402,7 +456,8 @@ export function useIncidentManagement() {
     handleApplyFirstAffectationType,
     handleSetCurrentStartTimeFirst,
     handleSetCurrentEndTimeFirst,
-    handleMatchEndTimeWithStartTime, // <-- Asegurado en el retorno
+    handleMatchEndTimeWithStartTime,
+    handleCopyTemplate,
     handleSubmit, 
     handleCloseIncident, 
     handleTemplateSelect, 

@@ -37,29 +37,23 @@ export function AffectedServicesTable({
 
   // Función para formatear automáticamente la fecha y hora mientras se escribe (DD/MM/YYYY HH:mm)
   const formatDateTimeInput = (value: string): string => {
-    // 1. Remover todo lo que no sea número
     const numbers = value.replace(/\D/g, '').slice(0, 12); // Máximo 12 dígitos (DDMMYYYYHHmm)
     
     let formatted = '';
 
     if (numbers.length > 0) {
-      // Día (DD)
       formatted += numbers.substring(0, 2);
     }
     if (numbers.length >= 3) {
-      // Mes (MM)
       formatted += '/' + numbers.substring(2, 4);
     }
     if (numbers.length >= 5) {
-      // Año (YYYY)
       formatted += '/' + numbers.substring(4, 8);
     }
     if (numbers.length >= 9) {
-      // Hora (HH)
       formatted += ' ' + numbers.substring(8, 10);
     }
     if (numbers.length >= 11) {
-      // Minutos (mm)
       formatted += ':' + numbers.substring(10, 12);
     }
 
@@ -152,11 +146,11 @@ export function AffectedServicesTable({
                       </select>
                     </td>
 
-                    {/* Tipo */}
+                    {/* Tipo corregido a 'status' */}
                     <td style={{ padding: '8px' }}>
                       <select 
                         value={service.status || 'OK'}
-                        onChange={(e) => onServiceChange(index, 'affectationType', e.target.value)}
+                        onChange={(e) => onServiceChange(index, 'status', e.target.value)}
                         style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff' }}
                       >
                         <option value="OK">OK</option>
@@ -199,25 +193,25 @@ export function AffectedServicesTable({
                     {/* Botón Eliminar */}
                     <td style={{ padding: '8px', textAlign: 'center' }}>
                       <button
-            type="button"
-            onClick={() => onDeleteService(index)}
-            style={{
-              backgroundColor: '#ef4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              width: '32px',
-              height: '32px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            -
-          </button>
+                        type="button"
+                        onClick={() => onDeleteService(index)}
+                        style={{
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          width: '32px',
+                          height: '32px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: '18px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        -
+                      </button>
                     </td>
 
                   </tr>

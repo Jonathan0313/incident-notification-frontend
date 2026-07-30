@@ -26,8 +26,8 @@ export interface Incident {
 const getIconForAffectation = (type: string) => {
   switch (type) {
     case 'OK': return '✅';
-    case 'Fallo': return '❌';
-    case 'Intermitente': return '⚠️';
+    case 'Parcial': return '⚠️';
+    case 'Total': return '❌';
     default: return '✅';
   }
 };
@@ -111,7 +111,7 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     const services = (formData as any).affectedServices || [];
     if (services.length === 0) return;
     
-    const firstStatus = services[0].status || 'Total';
+    const firstStatus = services[0].status || 'OK';
 
     const updatedServices = services.map((srv: any) => ({
       ...srv,
@@ -125,7 +125,7 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     if (selectedIncident && !isCreating) {
       isInitialMount.current = true;
       const mappedServices = ((selectedIncident as any).affectedServices || []).map((srv: any, idx: number) => {
-        const rawType = srv.status || 'Total';
+        const rawType = srv.status || 'OK';
         const rawServiceName = srv.nameService || srv.serviceName || srv.name || '';
 
         return {
@@ -162,7 +162,7 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
       resolution: currentData.resolution || '',
       
       affectedServices: (currentData.affectedServices || []).map((srv: any, index: number) => {
-        const serviceStatus = srv.status || 'Total';
+        const serviceStatus = srv.status || 'OK';
         const serviceCode = srv.code || srv.id || `SRV-${String(index + 1).padStart(3, '0')}`;
 
         return {
@@ -347,7 +347,7 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
       .map((srv: any) => {
         const icon = getIconForAffectation(srv.status);
         const name = srv.nameService || srv.name || 'Sin servicio';
-        const type = srv.status || 'Total';
+        const type = srv.status || 'OK';
         const start = srv.startTime || 'N/A';
         const end = srv.endTime || '';
         return `
@@ -402,7 +402,37 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
       </div>
     `;
 
-    const plainText = `Servicios Afectados:\n[Tabla de servicios]\n\nImpacto A Usuarios: ${formData.impact}\nJira: ${ticketCode} (${fullJiraUrl})\nDescripción de la falla: ${formData.description}`;
+    const servicesPlainText = ((formData as any).affectedServices || [])
+      .map((srv: any) => {
+        const icon = getIconForAffectation(srv.status);
+        const name = srv.nameService || srv.name || 'Sin servicio';
+        const type = srv.status || 'OK';
+        const start = srv.startTime || 'N/A';
+        const end = srv.endTime || '';
+        return `- ${icon} Servicio: ${name} | Estado: ${type} | Inicio: ${start} | Fin: ${end}`;
+      })
+      .join('\n');
+
+    const commentsPlainText = (formData.comments || [])
+      .map((comment: any, idx: number) => {
+        const text = comment?.content || comment?.text || '';
+        return text ? `Avance ${idx + 1}: ${text}` : '';
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    const plainText = [
+      `Servicios Afectados:`,
+      servicesPlainText || '- Ninguno',
+      ``,
+      `Impacto A Usuarios: ${formData.impact}`,
+      `Jira: ${ticketCode} (${fullJiraUrl})`,
+      formData.partnerCase?.trim() ? `Caso Aliado: ${formData.partnerCase}` : '',
+      `Componente Afectado: ${formData.affectedComponent}`,
+      `Descripción de la falla: ${formData.description}`,
+      commentsPlainText ? `\n${commentsPlainText}` : '',
+      formData.resolution?.trim() ? `\nSolución: ${formData.resolution}` : ''
+    ].filter(Boolean).join('\n');
 
     const clipboardItem = new ClipboardItem({
       'text/html': new Blob([htmlContent], { type: 'text/html' }),
