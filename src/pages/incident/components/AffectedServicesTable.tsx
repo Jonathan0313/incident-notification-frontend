@@ -1,10 +1,14 @@
-import type { Service } from "../../../domain/service";
-import { getIconForAffectation } from "../../../utils/incidentHelpers";
+interface AffectedService {
+  nameService: string;
+  status: string;
+  startTime: string;
+  endTime: string;
+}
 
 interface AffectedServicesTableProps {
-  affectedServices: any[];
-  availableServices: Service[];
-  hasError: boolean;
+  affectedServices: AffectedService[];
+  availableServices: any[];
+  hasError?: boolean;
   errorMessage?: string;
   onAddService: () => void;
   onDeleteService: (index: number) => void;
@@ -21,69 +25,213 @@ export function AffectedServicesTable({
   onServiceChange,
 }: AffectedServicesTableProps) {
   
-  const getAvailableOptionsForServiceRow = (currentSelectedService: string) => {
-    const currentlyUsedServices = affectedServices
-      .map((srv: any) => srv.nameService?.trim())
-      .filter((name: string) => name && name !== currentSelectedService);
+  // Asegurar que availableServices sea un arreglo plano y extraer su nombre correctamente
+  const serviceList = Array.isArray(availableServices) ? availableServices : [];
 
-    const uniqueAvailableServices = Array.from(new Set(availableServices.map(s => s.name?.trim())));
-    return uniqueAvailableServices.filter(serviceName => !currentlyUsedServices.includes(serviceName));
+  // Ordenar los servicios disponibles alfabéticamente
+  const sortedAvailableServices = [...serviceList].sort((a, b) => {
+    const nameA = (typeof a === 'string' ? a : (a.name || a.nameService || a.serviceName || '')).toLowerCase();
+    const nameB = (typeof b === 'string' ? b : (b.name || b.nameService || b.serviceName || '')).toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  // Función para formatear automáticamente la fecha y hora mientras se escribe (DD/MM/YYYY HH:mm)
+  const formatDateTimeInput = (value: string): string => {
+    // 1. Remover todo lo que no sea número
+    const numbers = value.replace(/\D/g, '').slice(0, 12); // Máximo 12 dígitos (DDMMYYYYHHmm)
+    
+    let formatted = '';
+
+    if (numbers.length > 0) {
+      // Día (DD)
+      formatted += numbers.substring(0, 2);
+    }
+    if (numbers.length >= 3) {
+      // Mes (MM)
+      formatted += '/' + numbers.substring(2, 4);
+    }
+    if (numbers.length >= 5) {
+      // Año (YYYY)
+      formatted += '/' + numbers.substring(4, 8);
+    }
+    if (numbers.length >= 9) {
+      // Hora (HH)
+      formatted += ' ' + numbers.substring(8, 10);
+    }
+    if (numbers.length >= 11) {
+      // Minutos (mm)
+      formatted += ':' + numbers.substring(10, 12);
+    }
+
+    return formatted;
   };
 
   return (
-    <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: hasError ? '1px solid #ef4444' : '1px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <strong style={{ fontSize: '14px' }}>Lista de afectaciones: <span style={{ color: '#ef4444' }}>*</span></strong>
-        <button type="button" onClick={onAddService} style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', width: '26px', height: '26px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
+    <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', border: hasError ? '1px solid #ef4444' : '1px solid #e2e8f0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b' }}>
+          Lista de afectaciones: *
+        </label>
+        <button 
+          type="button" 
+          onClick={onAddService}
+          style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}
+          title="Agregar servicio afectado"
+        >
+          +
+        </button>
       </div>
 
-      {affectedServices.length === 0 ? (
-        <p style={{ fontSize: '13px', color: hasError ? '#ef4444' : '#64748b', fontStyle: 'italic' }}>
-          {errorMessage || 'No hay servicios afectados agregados.'}
-        </p>
+      {(!affectedServices || affectedServices.length === 0) ? (
+        <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#64748b', fontStyle: 'italic', fontSize: '13px' }}>
+          No hay servicios afectados agregados.
+        </div>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', background: '#fff' }}>
-          <thead>
-            <tr style={{ background: '#e2e8f0', textAlign: 'left' }}>
-              <th style={{ padding: '8px', width: '70px', textAlign: 'center' }}>ESTADO</th>
-              <th style={{ padding: '8px' }}>SERVICIO</th>
-              <th style={{ padding: '8px' }}>TIPO</th>
-              <th style={{ padding: '8px' }}>INICIO *</th>
-              <th style={{ padding: '8px' }}>FIN</th>
-              <th style={{ padding: '8px', width: '40px' }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {affectedServices.map((srvRow: any, index: number) => (
-              <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ textAlign: 'center', fontSize: '18px' }}>{getIconForAffectation(srvRow.affectationType)}</td>
-                <td>
-                  <select value={srvRow.nameService?.trim() || ''} onChange={(e) => onServiceChange(index, 'nameService', e.target.value)} style={{ width: '100%', padding: '6px' }}>
-                    <option value="">-- Seleccione --</option>
-                    {srvRow.nameService?.trim() && <option value={srvRow.nameService.trim()}>{srvRow.nameService.trim()}</option>}
-                    {getAvailableOptionsForServiceRow(srvRow.nameService?.trim()).map((name, sIdx) => (<option key={sIdx} value={name}>{name}</option>))}
-                  </select>
-                </td>
-                <td>
-                  <select value={srvRow.affectationType || 'OK'} onChange={(e) => onServiceChange(index, 'affectationType', e.target.value)} style={{ width: '100%', padding: '6px' }}>
-                    <option value="OK">OK</option>
-                    <option value="Parcial">Parcial</option>
-                    <option value="Total">Total</option>
-                  </select>
-                </td>
-                <td>
-                  <input type="text" value={srvRow.startTime || ''} onChange={(e) => onServiceChange(index, 'startTime', e.target.value)} placeholder="DD/MM/YYYY HH:mm" style={{ width: '100%', padding: '6px' }} />
-                </td>
-                <td>
-                  <input type="text" value={srvRow.endTime || ''} onChange={(e) => onServiceChange(index, 'endTime', e.target.value)} placeholder="DD/MM/YYYY HH:mm" style={{ width: '100%', padding: '6px' }} />
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  <button type="button" onClick={() => onDeleteService(index)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', width: '24px', height: '24px', cursor: 'pointer' }}>-</button>
-                </td>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff', borderRadius: '6px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #cbd5e1', textAlign: 'left', fontSize: '12px', color: '#475569' }}>
+                <th style={{ padding: '8px', width: '70px', textAlign: 'center' }}>ESTADO</th>
+                <th style={{ padding: '8px' }}>SERVICIO</th>
+                <th style={{ padding: '8px', width: '130px' }}>TIPO</th>
+                <th style={{ padding: '8px', width: '180px' }}>INICIO *</th>
+                <th style={{ padding: '8px', width: '180px' }}>FIN</th>
+                <th style={{ padding: '8px', width: '50px', textAlign: 'center' }}></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {affectedServices.map((service, index) => {
+                const selectedServiceNames = affectedServices
+                  .filter((_, idx) => idx !== index)
+                  .map(s => s.nameService);
+
+                const availableOptions = sortedAvailableServices.filter(s => {
+                  const sName = typeof s === 'string' ? s : (s.name || s.nameService || s.serviceName);
+                  return !selectedServiceNames.includes(sName);
+                });
+
+                const affectationUpper = (service.status || 'OK').toUpperCase();
+
+                return (
+                  <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    
+                    {/* Estado con iconos */}
+                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '16px' }}>
+                      {affectationUpper === 'OK' ? (
+                        <span title="OK">✅</span>
+                      ) : affectationUpper === 'TOTAL' ? (
+                        <span title="Total">❌</span>
+                      ) : (
+                        <span title="Parcial">⚠️</span>
+                      )}
+                    </td>
+
+                    {/* Servicio */}
+                    <td style={{ padding: '8px' }}>
+                      <select 
+                        required
+                        value={service.nameService || ''}
+                        onChange={(e) => onServiceChange(index, 'nameService', e.target.value)}
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff' }}
+                      >
+                        <option value="">-- Seleccione --</option>
+                        {service.nameService && !sortedAvailableServices.some(s => {
+                          const sName = typeof s === 'string' ? s : (s.name || s.nameService || s.serviceName);
+                          return sName === service.nameService;
+                        }) && (
+                          <option value={service.nameService}>{service.nameService}</option>
+                        )}
+                        {availableOptions.map((opt, optIdx) => {
+                          const optName = typeof opt === 'string' ? opt : (opt.name || opt.nameService || opt.serviceName);
+                          return (
+                            <option key={optIdx} value={optName}>
+                              {optName}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </td>
+
+                    {/* Tipo */}
+                    <td style={{ padding: '8px' }}>
+                      <select 
+                        value={service.status || 'OK'}
+                        onChange={(e) => onServiceChange(index, 'affectationType', e.target.value)}
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff' }}
+                      >
+                        <option value="OK">OK</option>
+                        <option value="Parcial">Parcial</option>
+                        <option value="Total">Total</option>
+                      </select>
+                    </td>
+
+                    {/* Inicio */}
+                    <td style={{ padding: '8px' }}>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="DD/MM/YYYY HH:mm"
+                        maxLength={16}
+                        value={service.startTime || ''}
+                        onChange={(e) => {
+                          const formatted = formatDateTimeInput(e.target.value);
+                          onServiceChange(index, 'startTime', formatted);
+                        }}
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', backgroundColor: '#fff' }}
+                      />
+                    </td>
+
+                    {/* Fin */}
+                    <td style={{ padding: '8px' }}>
+                      <input 
+                        type="text" 
+                        placeholder="DD/MM/YYYY HH:mm"
+                        maxLength={16}
+                        value={service.endTime || ''}
+                        onChange={(e) => {
+                          const formatted = formatDateTimeInput(e.target.value);
+                          onServiceChange(index, 'endTime', formatted);
+                        }}
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', backgroundColor: '#fff' }}
+                      />
+                    </td>
+
+                    {/* Botón Eliminar */}
+                    <td style={{ padding: '8px', textAlign: 'center' }}>
+                      <button
+            type="button"
+            onClick={() => onDeleteService(index)}
+            style={{
+              backgroundColor: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              width: '32px',
+              height: '32px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            -
+          </button>
+                    </td>
+
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {hasError && errorMessage && (
+        <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '6px', display: 'block' }}>
+          {errorMessage}
+        </span>
       )}
     </div>
   );

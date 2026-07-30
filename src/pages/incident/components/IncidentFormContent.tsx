@@ -1,274 +1,359 @@
-import React from 'react';
 import { AffectedServicesTable } from './AffectedServicesTable';
+import React, { useRef } from 'react';
 
 interface IncidentFormContentProps {
   formData: any;
-  isCreating: boolean;
-  filterType: string;
-  isSaving: boolean;
-  errors: Record<string, string>;
-  availableServices: any[];
-  dropdownTemplates: any[];
   setFormData: (data: any) => void;
-  normalizeText: (str: string) => void;
-  handleAddAffectedService: () => void;
-  handleDeleteAffectedService: (index: number) => void;
-  handleAffectedServiceChange: (index: number, field: string, value: string) => void;
-  handleAddComment: () => void;
-  handleDeleteComment: (index: number) => void;
-  handleCommentChange: (index: number, text: string) => void;
-  onSaveClick: () => void;
-  onCloseClick: () => void;
-  handleUpdateTemplate: () => void;
-  handleStartOpenIncident: () => void;
-  handleSaveAsTemplate: () => void;
-  handleDeleteTemplate: () => void;
-  onCancelCreate: () => void;
+  affectedServices: any[];
+  availableServices: any[];
+  isCreating: boolean;
+  templates: any[];
+  onAddService: () => void;
+  onDeleteService: (index: number) => void;
+  onServiceChange: (index: number, field: string, value: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onCloseIncident?: () => void;
+  onSaveAsTemplate?: () => void;
+  onCancelCreation?: () => void;
+  onTemplateSelect: (type: 'description' | 'solution', templateName: string) => void;
+  tableError?: boolean;
+  setTableError?: (hasError: boolean) => void;
+  showToast?: (type: 'success' | 'error', message: string) => void;
 }
 
-export const IncidentFormContent: React.FC<IncidentFormContentProps> = ({
+export function IncidentFormContent({
   formData,
-  isCreating,
-  filterType,
-  isSaving,
-  errors,
-  availableServices,
-  dropdownTemplates,
   setFormData,
-  normalizeText,
-  handleAddAffectedService,
-  handleDeleteAffectedService,
-  handleAffectedServiceChange,
-  handleAddComment,
-  handleDeleteComment,
-  handleCommentChange,
-  onSaveClick,
-  onCloseClick,
-  handleUpdateTemplate,
-  handleStartOpenIncident,
-  handleSaveAsTemplate,
-  handleDeleteTemplate,
-  onCancelCreate,
-}) => {
-  // Verificamos si realmente hay un ID válido seleccionado
-  const hasValidId = formData && formData.id && String(formData.id).trim() !== '';
+  affectedServices,
+  availableServices,
+  isCreating,
+  templates,
+  onAddService,
+  onDeleteService,
+  onServiceChange,
+  onSubmit,
+  onCloseIncident,
+  onSaveAsTemplate,
+  onCancelCreation,
+  onTemplateSelect,
+  tableError,
+  setTableError,
+  showToast,
+}: IncidentFormContentProps) {
+  
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const descriptionTemplates = templates.filter(t => t.typeTemplate === 'Descripción');
+  const solutionTemplates = templates.filter(t => t.typeTemplate === 'Solución');
+  const advanceTemplates = templates.filter(t => t.typeTemplate === 'Avances');
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // 1. Validar que exista al menos un servicio afectado
+    if (!affectedServices || affectedServices.length === 0) {
+      if (setTableError) setTableError(true);
+      if (showToast) showToast('error', 'Debe agregar al menos un servicio afectado.');
+      
+      // Desplazar la vista hacia la tabla para que el usuario vea el error
+      if (tableContainerRef.current) {
+        tableContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    // 2. Validar que cada servicio tenga un nombre válido y su fecha de inicio
+    const isValidServices = affectedServices.every(
+      (service) => 
+        service.nameService && 
+        service.nameService.trim() !== '' && 
+        service.nameService !== '-- Seleccione --' &&
+        service.startTime && 
+        service.startTime.trim() !== ''
+    );
+
+    if (!isValidServices) {
+      if (setTableError) setTableError(true);
+      if (showToast) showToast('error', 'Debe seleccionar un servicio válido y su fecha de inicio en todas las filas agregadas.');
+      
+      if (tableContainerRef.current) {
+        tableContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    // Si todo es correcto
+    if (setTableError) setTableError(false);
+    onSubmit(e);
+  };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', marginBottom: '15px' }}>
-        <h2 style={{ margin: 0, fontSize: '20px' }}>
-          {isCreating ? 'Crear Nuevo Incidente' : (filterType === 'templates' ? 'Editar Plantilla' : 'Editar Incidente')}
-        </h2>
-        {isSaving && filterType !== 'templates' && (
-          <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
-            Autoguardando cambios... 🔄
-          </span>
-        )}
-      </div>
+    <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', flex: 1, overflowY: 'auto' }}>
+      <h2 style={{ marginTop: 0, fontSize: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+        {isCreating ? 'Crear Nuevo Incidente' : 'Editar Incidente'}
+      </h2>
 
-      {Object.keys(errors).length > 0 && (
-        <div style={{ backgroundColor: '#ffeeec', border: '1px solid #ef4444', padding: '10px 14px', borderRadius: '6px', marginBottom: '15px', color: '#b91c1c', fontSize: '13px' }}>
-          <strong>Por favor corrige los siguientes errores:</strong>
-          <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
-            {Object.values(errors).map((err, idx) => (<li key={idx}>{err}</li>))}
-          </ul>
-        </div>
-      )}
-
-      <AffectedServicesTable 
-        affectedServices={formData.affectedServices || []}
-        availableServices={availableServices}
-        hasError={!!errors.services}
-        errorMessage={errors.services}
-        onAddService={handleAddAffectedService}
-        onDeleteService={handleDeleteAffectedService}
-        onServiceChange={handleAffectedServiceChange}
-      />
-
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-        <tbody>
-          <tr>
-            <td style={{ paddingBottom: '12px' }}>
-              <strong>Nombre: *</strong><br />
-              <input type="text" value={formData.name || ''} onChange={(e) => setFormData({...formData, name: e.target.value})} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-            </td>
-          </tr>
-          <tr>
-            <td style={{ paddingBottom: '12px' }}>
-              <strong>Impacto: *</strong><br />
-              <input type="text" value={formData.impact || ''} onChange={(e) => setFormData({...formData, impact: e.target.value})} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-            </td>
-          </tr>
-          <tr>
-            <td style={{ paddingBottom: '12px' }}>
-              <strong>Componentes Afectados: *</strong><br />
-              <input type="text" value={formData.affectedComponent || ''} onChange={(e) => setFormData({...formData, affectedComponent: e.target.value})} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-            </td>
-          </tr>
-          <tr>
-            <td style={{ paddingBottom: '12px' }}>
-              <strong>Jira:</strong><br />
-              <input type="text" value={formData?.jira ?? ''} onChange={(e) => setFormData({ ...formData, jira: e.target.value })} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-            </td>
-          </tr>
-          <tr>
-            <td style={{ paddingBottom: '12px' }}>
-              <strong>Caso Aliado:</strong><br />
-              <input type="text" value={formData?.partnerCase ?? ''} onChange={(e) => setFormData({ ...formData, partnerCase: e.target.value })} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div style={{ fontSize: '14px', marginTop: '15px' }}>
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <strong>Descripción de la falla: *</strong>
-            <select
-              onChange={(e) => {
-                const val = e.target.value;
-                if (!val) return;
-                setFormData({ ...formData, description: val });
-                e.target.value = '';
-              }}
-              style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', cursor: 'pointer' }}
-            >
-              <option value="">📋 Cargar plantilla en Descripción...</option>
-              {dropdownTemplates
-                .filter((t: any) => {
-                  const type = normalizeText(t.typeTemplate);
-                  return type.includes('desc') || type.includes('falla');
-                })
-                .map((t: any, idx: number) => (
-                  <option key={idx} value={t.messageTemplate || ''}>{t.name}</option>
-                ))}
-            </select>
-          </div>
-          <textarea value={formData.description || ''} onChange={(e) => setFormData({...formData, description: e.target.value})} rows={3} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-        </div>
-
-        <div style={{ margin: '15px 0', borderTop: '1px dashed #e2e8f0', paddingTop: '15px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <strong>Avances:</strong>
-            <button type="button" onClick={handleAddComment} style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', width: '26px', height: '26px', cursor: 'pointer' }}>+</button>
-          </div>
-          {(!formData.comments || formData.comments.length === 0) ? (
-            <p style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic' }}>No hay avances registrados.</p>
-          ) : (
-            formData.comments.map((comment: any, index: number) => (
-              <div key={index} style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', margin: '8px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Avance {index + 1}:</span>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <select
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) return;
-                        handleCommentChange(index, val);
-                        e.target.value = '';
-                      }}
-                      style={{ fontSize: '11px', padding: '2px 4px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', cursor: 'pointer' }}
-                    >
-                      <option value="">📋 Plantilla...</option>
-                      {dropdownTemplates
-                        .filter((t: any) => {
-                          const type = normalizeText(t.typeTemplate);
-                          return type.includes('avan') || type.includes('seg');
-                        })
-                        .map((t: any, tIdx: number) => (
-                          <option key={tIdx} value={t.messageTemplate || ''}>{t.name}</option>
-                        ))}
-                    </select>
-                    <button type="button" onClick={() => handleDeleteComment(index)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', width: '22px', height: '22px' }}>-</button>
-                  </div>
-                </div>
-                <textarea value={comment.content || ''} onChange={(e) => handleCommentChange(index, e.target.value)} rows={2} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
-              </div>
-            ))
+      <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+        
+        {/* Contenedor de la Tabla con Referencia para Scroll */}
+        <div 
+          ref={tableContainerRef}
+          style={{ 
+            border: tableError ? '2px solid #ef4444' : '1px solid transparent', 
+            borderRadius: '8px', 
+            padding: tableError ? '8px' : '0',
+            backgroundColor: tableError ? '#fef2f2' : 'transparent',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <AffectedServicesTable 
+            affectedServices={affectedServices}
+            availableServices={availableServices}
+            hasError={!!tableError}
+            errorMessage={tableError ? 'Debe agregar y seleccionar un servicio válido junto con su fecha de inicio.' : undefined}
+            onAddService={onAddService}
+            onDeleteService={onDeleteService}
+            onServiceChange={onServiceChange}
+          />
+          {tableError && (
+            <span style={{ color: '#ef4444', fontSize: '12px', fontWeight: '500', marginTop: '4px', display: 'block' }}>
+              ⚠️ Este campo es obligatorio y requiere al menos un servicio válido.
+            </span>
           )}
         </div>
 
-        <div style={{ marginBottom: '15px', borderTop: '1px dashed #e2e8f0', paddingTop: '15px' }}>
+        {/* Nombre */}
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Nombre: *</label>
+          <input 
+            type="text" 
+            required
+            value={formData.name || ''} 
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Impacto */}
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Impacto: *</label>
+          <input 
+            type="text" 
+            required
+            value={formData.impact || ''} 
+            onChange={(e) => setFormData({ ...formData, impact: e.target.value })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Funcionalidades */}
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Funcionalidades: *</label>
+          <input 
+            type="text" 
+            required
+            value={formData.functionality || ''} 
+            onChange={(e) => setFormData({ ...formData, functionality: e.target.value })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Componentes Afectados */}
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Componentes Afectados: *</label>
+          <input 
+            type="text" 
+            required
+            value={formData.affectedComponent || ''} 
+            onChange={(e) => setFormData({ ...formData, affectedComponent: e.target.value })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Jira */}
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Jira:</label>
+          <input 
+            type="text" 
+            value={formData.jira || ''} 
+            onChange={(e) => setFormData({ ...formData, jira: e.target.value })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Caso Aliado */}
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Caso Aliado:</label>
+          <input 
+            type="text" 
+            value={formData.aliasedCase || ''} 
+            onChange={(e) => setFormData({ ...formData, aliasedCase: e.target.value })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Descripción de la falla */}
+        <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <strong>Solución: *</strong>
-            <select
-              onChange={(e) => {
-                const val = e.target.value;
-                if (!val) return;
-                setFormData({ ...formData, resolution: val });
-                e.target.value = '';
+            <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Descripción de la falla: *</label>
+            <select 
+              onChange={(e) => { 
+                if (e.target.value) {
+                  onTemplateSelect('description', e.target.value); 
+                  e.target.value = ''; 
+                }
               }}
-              style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', cursor: 'pointer' }}
+              style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', cursor: 'pointer' }}
             >
-              <option value="">📋 Cargar plantilla en Solución...</option>
-              {dropdownTemplates
-                .filter((t: any) => {
-                  const type = normalizeText(t.typeTemplate);
-                  return type.includes('sol') || type.includes('cier');
-                })
-                .map((t: any, idx: number) => (
-                  <option key={idx} value={t.messageTemplate || ''}>{t.name}</option>
-                ))}
+              <option value="">📄 Cargar plantilla en Descripción...</option>
+              {descriptionTemplates.map((t, idx) => (
+                <option key={idx} value={t.name}>{t.name}</option>
+              ))}
             </select>
           </div>
-          <textarea value={formData.resolution || ''} onChange={(e) => setFormData({...formData, resolution: e.target.value})} rows={3} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
+          <textarea 
+            rows={4}
+            required
+            value={formData.description || ''} 
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+          />
         </div>
-      </div>
 
-      <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          {filterType === 'templates' ? (
-            <>
-              {/* 🟢 Botón con bloqueo visual si no hay ID seleccionado */}
-              <button 
-                onClick={handleUpdateTemplate} 
-                disabled={!hasValidId}
-                style={{ 
-                  backgroundColor: !hasValidId ? '#94a3b8' : '#2563eb', 
-                  color: 'white', 
-                  padding: '8px 16px', 
-                  border: 'none', 
-                  borderRadius: '6px', 
-                  cursor: !hasValidId ? 'not-allowed' : 'pointer', 
-                  fontWeight: 600,
-                  opacity: !hasValidId ? 0.7 : 1
-                }}
-              >
-                Actualizar Plantilla
-              </button>
-              {!isCreating && (
-                <button onClick={handleStartOpenIncident} style={{ backgroundColor: '#0ea5e9', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-                  🚀 Crear Incidente
-                </button>
-              )}
-            </>
+        {/* Sección de Avances */}
+        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <label style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>Avances:</label>
+            <button 
+              type="button" 
+              onClick={() => {
+                const currentAdv = formData.advances || [];
+                setFormData({ ...formData, advances: [...currentAdv, { message: '' }] });
+              }} 
+              style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}
+            >
+              +
+            </button>
+          </div>
+
+          {(!formData.advances || formData.advances.length === 0) ? (
+            <p style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic', margin: 0 }}>No hay avances registrados.</p>
           ) : (
-            <button onClick={onSaveClick} style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {formData.advances.map((adv: any, index: number) => (
+                <div key={index} style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b' }}>
+                      Avance {index + 1}:
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <select 
+                        onChange={(e) => { 
+                          if (e.target.value) {
+                            const found = advanceTemplates.find(t => t.name === e.target.value);
+                            if (found) {
+                              const updated = [...formData.advances];
+                              updated[index].message = found.messageTemplate;
+                              setFormData({ ...formData, advances: updated });
+                            }
+                            e.target.value = '';
+                          }
+                        }}
+                        style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', cursor: 'pointer' }}
+                      >
+                        <option value="">📄 Cargar plantilla en Avance...</option>
+                        {advanceTemplates.map((t, idx) => (
+                          <option key={idx} value={t.name}>{t.name}</option>
+                        ))}
+                      </select>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          const updated = formData.advances.filter((_: any, i: number) => i !== index);
+                          setFormData({ ...formData, advances: updated });
+                        }} 
+                        style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                      >
+                        -
+                      </button>
+                    </div>
+                  </div>
+
+                  <textarea 
+                    rows={3}
+                    value={adv.message || ''}
+                    onChange={(e) => {
+                      const updated = [...formData.advances];
+                      updated[index].message = e.target.value;
+                      setFormData({ ...formData, advances: updated });
+                    }}
+                    style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', resize: 'vertical' }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Solución */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Solución: *</label>
+            <select 
+              onChange={(e) => { 
+                if (e.target.value) {
+                  onTemplateSelect('solution', e.target.value); 
+                  e.target.value = ''; 
+                }
+              }}
+              style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', cursor: 'pointer' }}
+            >
+              <option value="">📄 Cargar plantilla en Solución...</option>
+              {solutionTemplates.map((t, idx) => (
+                <option key={idx} value={t.name}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          <textarea 
+            rows={4}
+            value={formData.solution || ''} 
+            onChange={(e) => setFormData({ ...formData, solution: e.target.value })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Botones inferiores de acción */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', borderTop: '1px solid #e2e8f0', paddingTop: '15px' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="submit" style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
               {isCreating ? 'Guardar Nuevo Incidente' : 'Guardar Cambios'}
             </button>
-          )}
-          
-          {filterType !== 'templates' && (
-            <button onClick={handleSaveAsTemplate} style={{ backgroundColor: '#8b5cf6', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-              💾 Guardar como Plantilla
-            </button>
-          )}
+            {onSaveAsTemplate && (
+              <button type="button" onClick={onSaveAsTemplate} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                💾 Guardar como Plantilla
+              </button>
+            )}
+          </div>
+
+          <div>
+            {isCreating ? (
+              onCancelCreation && (
+                <button type="button" onClick={onCancelCreation} style={{ backgroundColor: 'white', color: '#1e293b', border: '1px solid #cbd5e1', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                  Cancelar
+                </button>
+              )
+            ) : (
+              onCloseIncident && (
+                <button type="button" onClick={onCloseIncident} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                  Cerrar Incidente
+                </button>
+              )
+            )}
+          </div>
         </div>
 
-        {isCreating ? (
-          <button onClick={onCancelCreate} style={{ padding: '8px 16px', border: '1px solid #e2e8f0', background: 'transparent', borderRadius: '6px', cursor: 'pointer' }}>
-            Cancelar
-          </button>
-        ) : filterType === 'templates' ? (
-          <button onClick={handleDeleteTemplate} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-            Eliminar Plantilla 🗑️
-          </button>
-        ) : (
-          <button onClick={onCloseClick} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-            Cerrar Incidente
-          </button>
-        )}
-      </div>
+      </form>
     </div>
   );
-};
+}

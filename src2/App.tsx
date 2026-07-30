@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import IncidentManagementPage from './pages/incident/IncidentManagementPage';
 import ServiceManagementPage from './pages/ServiceManagementPage';
-import TemplateManagementPage from "./pages/TemplateManagementPage";
+import TemplateManagementPage from './pages/template/TemplateManagementPage';
 import './index.css';
 
 function App() {

@@ -12,7 +12,7 @@ export default function IncidentManagementPage() {
   const [templates, setTemplates] = useState<any[]>([]);
   
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
-  const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [isCreating, setIsCreating] = useState<boolean>(false); // Inicia en falso para mostrar la pantalla de bienvenida vacía
   const [filterType, setFilterType] = useState<'open' | 'closed_recent' | 'templates'>('open');
   const [loading, setLoading] = useState<boolean>(false);
   
@@ -28,20 +28,29 @@ export default function IncidentManagementPage() {
   };
 
   useEffect(() => {
-    fetchServicesOnly();
-  }, []);
+    fetchInitialData();
+  }, [filterType]);
 
-  const fetchServicesOnly = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      
-      // Únicamente llamamos a la API de servicios que sí funciona
-      const srvRes = await axiosClient.get('/v1/api/services/all').catch(() => ({ data: [] }));
-      const rawServices = srvRes.data;
-      setAvailableServices(Array.isArray(rawServices) ? rawServices : (rawServices?.content || rawServices?.data || []));
+      const srvRes = await axiosClient.get('/v1/api/services').catch(() => ({ data: [] }));
+      setAvailableServices(srvRes.data || []);
+
+      if (filterType === 'templates') {
+        const tempRes = await axiosClient.get('/v1/api/templates').catch(() => ({ data: [] }));
+        setIncidents(tempRes.data || []);
+      } else {
+        const endpoint = filterType === 'open' ? '/v1/api/incidents/open' : '/v1/api/incidents/closed';
+        const incRes = await axiosClient.get(endpoint).catch(() => ({ data: [] }));
+        setIncidents(incRes.data || []);
+      }
+
+      const allTemplatesRes = await axiosClient.get('/v1/api/templates').catch(() => ({ data: [] }));
+      setTemplates(allTemplatesRes.data || []);
 
     } catch (error) {
-      showToast('error', 'Error al cargar los servicios.');
+      showToast('error', 'Error al sincronizar los datos con el servidor.');
     } finally {
       setLoading(false);
     }
@@ -62,7 +71,7 @@ export default function IncidentManagementPage() {
   };
 
   const handleAddService = () => {
-    setAffectedServices([...affectedServices, { nameService: '', status: 'OK', startTime: '', endTime: '' }]);
+    setAffectedServices([...affectedServices, { nameService: '', affectationType: 'OK', startTime: '', endTime: '' }]);
   };
 
   const handleDeleteService = (index: number) => {
@@ -93,7 +102,7 @@ export default function IncidentManagementPage() {
   const handleApplyFirstAffectationType = () => {
     if (affectedServices.length === 0) return;
     const firstType = affectedServices[0].affectationType;
-    const updated = affectedServices.map(s => ({ ...s, status: firstType }));
+    const updated = affectedServices.map(s => ({ ...s, affectationType: firstType }));
     setAffectedServices(updated);
   };
 
@@ -101,24 +110,23 @@ export default function IncidentManagementPage() {
     e.preventDefault();
     try {
       const payload = { ...formData, affectedServices };
-      
       if (isCreating) {
-        await axiosClient.post('/v1/api/notifications', payload);
+        await axiosClient.post('/v1/api/incidents', payload);
         showToast('success', 'Incidente registrado correctamente.');
-        setIsCreating(false);
       } else {
-        await axiosClient.put(`/v1/api/notifications/${selectedIncident?.id}`, payload);
+        await axiosClient.put(`/v1/api/incidents/${selectedIncident.id}`, payload);
         showToast('success', 'Incidente actualizado correctamente.');
       }
-      
+      fetchInitialData();
     } catch (error: any) {
-      showToast('error', error?.response?.data?.message || 'Error al guardar.');
+      showToast('error', error?.response?.data?.message || 'Error al guardar el incidente.');
     }
   };
 
   return (
     <div style={{ display: 'flex', gap: '15px', padding: '15px', height: 'calc(100vh - 40px)', boxSizing: 'border-box', backgroundColor: '#f1f5f9', position: 'relative' }}>
       
+      {/* Panel Izquierdo de Navegación */}
       <IncidentSidebarLeft 
         incidents={incidents}
         selectedIncident={selectedIncident}
@@ -130,6 +138,7 @@ export default function IncidentManagementPage() {
         onFilterChange={setFilterType}
       />
 
+      {/* Panel Central: Muestra el formulario si se está creando o editando, o el mensaje de bienvenida si no hay selección */}
       {isCreating || selectedIncident ? (
         <IncidentFormContent 
           formData={formData}
@@ -142,7 +151,6 @@ export default function IncidentManagementPage() {
           onDeleteService={handleDeleteService}
           onServiceChange={handleServiceChange}
           onSubmit={handleSubmit}
-          onSaveAsTemplate={() => setIsTemplateModalOpen(true)}
           onCancelCreation={() => {
             setIsCreating(false);
             setFormData({});
@@ -164,6 +172,7 @@ export default function IncidentManagementPage() {
         </div>
       )}
 
+      {/* Panel Derecho de Opciones */}
       <IncidentSidebarRight 
         hasFormData={!isCreating && !!selectedIncident}
         onCopyTemplate={() => setIsTemplateModalOpen(true)}
@@ -186,14 +195,7 @@ export default function IncidentManagementPage() {
         }}
       />
 
-      {isTemplateModalOpen && (
-        <TemplateModal 
-          isOpen={isTemplateModalOpen} 
-          onClose={() => setIsTemplateModalOpen(false)} 
-          onSave={() => setIsTemplateModalOpen(false)}
-        />
-      )}
-
+      {/* Notificación Toast */}
       {toast && <Toast type={toast.type} message={toast.message} />}
     </div>
   );

@@ -23,23 +23,26 @@ export interface NotificationTemplate {
   createdAt?: string;
 }
 
-// 🟢 Extractor universal de errores de Axios y del Backend
+// 🟢 Extractor universal enfocado en leer la propiedad "message" del backend
 const extractBackendError = (error: any, defaultMsg: string): never => {
   const data = error?.response?.data;
-  
   let errorMessage = '';
 
-  if (typeof data === 'string') {
-    errorMessage = data; // Si el backend responde con un texto plano (ej: "El nombre ya existe")
-  } else if (data && typeof data === 'object') {
-    errorMessage = data.message || data.error || data.mensaje || data.details;
+  if (data) {
+    if (typeof data === 'string') {
+      errorMessage = data;
+    } else if (typeof data === 'object') {
+      errorMessage = data.message || data.error || data.mensaje || data.details;
+      if (!errorMessage) {
+        errorMessage = JSON.stringify(data);
+      }
+    }
   }
 
   if (!errorMessage) {
     errorMessage = error?.message || defaultMsg;
   }
 
-  // Lanzamos un error limpio que ya lleva el texto exacto del servidor
   throw new Error(errorMessage);
 };
 
@@ -64,6 +67,13 @@ export const notificationTemplateService = {
   },
 
   async update(id: string, template: NotificationTemplate): Promise<NotificationTemplate> {
+    // 🟢 DEFENSA TOTAL: Imprime en consola exactamente qué ID se está enviando a la API de plantillas
+    console.log("🛠️ Intentando actualizar plantilla con ID:", id);
+
+    if (!id || String(id).trim() === '' || String(id).length < 5) {
+      throw new Error('ID de plantilla inválido o no seleccionado.');
+    }
+
     try {
       const response = await axiosClient.put(`/v1/api/notification-templates/${id}`, template);
       return response.data;
@@ -73,6 +83,10 @@ export const notificationTemplateService = {
   },
 
   async delete(id: string): Promise<void> {
+    if (!id || String(id).trim() === '') {
+      throw new Error('ID de plantilla inválido o no seleccionado.');
+    }
+
     try {
       await axiosClient.delete(`/v1/api/notification-templates/${id}`);
     } catch (error) {

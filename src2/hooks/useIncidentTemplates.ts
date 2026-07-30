@@ -34,8 +34,7 @@ export function useIncidentTemplates({
       setTemplates(data || []);
       setDropdownTemplates(data || []);
     } catch (error: any) {
-      const backendMsg = error?.message || 'Error al cargar las plantillas.';
-      showToast('error', backendMsg, error);
+      showToast('error', error?.message || 'Error al cargar las plantillas.', error);
     }
   };
 
@@ -71,37 +70,45 @@ export function useIncidentTemplates({
       showToast('success', '¡Plantilla guardada exitosamente!');
       await fetchTemplates();
     } catch (error: any) {
-      const backendMsg = error?.message || 'Error al guardar la plantilla.';
-      showToast('error', backendMsg, error);
+      showToast('error', error?.message || 'Error al guardar la plantilla.', error);
     }
   };
 
   const handleUpdateTemplate = async () => {
-    // 🟢 VALIDACIÓN ESTRICTA: Verificamos tanto formData como si tiene un ID real
-    if (!formData || !formData.id || String(formData.id).trim() === '') {
-      showToast('error', 'Selecciona uno');
+    if (!formData) {
+      showToast('error', 'No hay datos en el formulario.');
+      return;
+    }
+
+    const targetId = formData.id || selectedIncident?.id;
+
+    if (!targetId) {
+      showToast('error', 'No se ha seleccionado ninguna plantilla válida para actualizar.');
       return;
     }
 
     try {
       const templateData: NotificationTemplate = {
-        name: formData.name || '',
-        impact: formData.impact || '',
-        functionality: (formData as any).functionality || 'Ok',
-        jira: formData.jira || '',
-        partnerCase: formData.partnerCase || '',
-        affectedComponent: (formData as any).affectedComponent || '',
-        description: formData.description || '',
-        resolution: formData.resolution || '',
-        affectedServices: (formData as any).affectedServices || [],
+        id: String(targetId),
+        name: String(formData.name || ''),
+        impact: String(formData.impact || ''),
+        functionality: String((formData as any).functionality || 'Ok'),
+        jira: String(formData.jira || ''),
+        partnerCase: String(formData.partnerCase || ''),
+        affectedComponent: String((formData as any).affectedComponent || ''),
+        description: String(formData.description || ''),
+        resolution: String(formData.resolution || ''),
+        affectedServices: Array.isArray((formData as any).affectedServices) 
+          ? (formData as any).affectedServices 
+          : [],
       };
 
-      await notificationTemplateService.update(formData.id.toString(), templateData);
+      await notificationTemplateService.update(String(targetId), templateData);
       showToast('success', 'Plantilla actualizada exitosamente.');
       await fetchTemplates();
     } catch (error: any) {
-      const backendMsg = error?.message || 'Error al actualizar la plantilla.';
-      showToast('error', backendMsg, error);
+      const backendMessage = error?.message || 'Error al actualizar la plantilla.';
+      showToast('error', backendMessage, error);
     }
   };
 
@@ -124,8 +131,7 @@ export function useIncidentTemplates({
       await refreshCurrentList(undefined, 'open');
       await fetchTemplates();
     } catch (error: any) {
-      const backendMsg = error?.message || 'Error al eliminar la plantilla.';
-      showToast('error', backendMsg, error);
+      showToast('error', error?.message || 'Error al eliminar la plantilla.', error);
     }
   };
 
