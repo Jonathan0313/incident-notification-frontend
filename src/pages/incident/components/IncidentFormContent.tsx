@@ -16,6 +16,7 @@ interface IncidentFormContentProps {
   onCloseIncident?: (currentComments?: any[]) => void;
   onSaveAsTemplate?: () => void;
   onCancelCreation?: () => void;
+  onCreateNotification?: () => void; // <--- Acción para crear incidente vía API
   onTemplateSelect?: (type: 'description' | 'solution' | 'comments', templateName: string, commentIndex?: number) => void;
   tableError?: boolean;
   setTableError?: (hasError: boolean) => void;
@@ -37,6 +38,7 @@ export function IncidentFormContent({
   onCloseIncident,
   onSaveAsTemplate,
   onCancelCreation,
+  onCreateNotification,
   tableError,
   setTableError,
   showToast,
@@ -97,11 +99,18 @@ export function IncidentFormContent({
 
   const isClosed = formData.status === 'Closed' || formData.status === 'CLOSED';
   const isTemplateView = filterType === 'templates';
+  const isTemplateNameDisabled = !isCreating && isTemplateView;
 
   return (
     <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', flex: 1, overflowY: 'auto' }}>
       <h2 style={{ marginTop: 0, fontSize: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-        {isCreating ? 'Crear Nuevo Incidente' : isClosed ? 'Incidente Cerrado (Editar)' : isTemplateView ? 'Editar Plantilla' : 'Editar Incidente'}
+        {isCreating 
+          ? (isTemplateView ? 'Crear Nueva Plantilla' : 'Crear Nuevo Incidente') 
+          : isClosed 
+            ? 'Incidente Cerrado (Editar)' 
+            : isTemplateView 
+              ? 'Editar Plantilla' 
+              : 'Editar Incidente'}
       </h2>
 
       <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
@@ -137,12 +146,10 @@ export function IncidentFormContent({
           <input 
             type="text" 
             required
-            readOnly={isTemplateView && !isCreating}
             value={formData.name || ''} 
+            disabled={isTemplateNameDisabled}
             onChange={(e) => {
-              if (!(isTemplateView && !isCreating)) {
-                setFormData({ ...formData, name: e.target.value });
-              }
+              setFormData({ ...formData, name: e.target.value });
             }}
             style={{ 
               width: '100%', 
@@ -150,8 +157,9 @@ export function IncidentFormContent({
               borderRadius: '6px', 
               border: '1px solid #cbd5e1', 
               boxSizing: 'border-box',
-              backgroundColor: isTemplateView && !isCreating ? '#f1f5f9' : '#fff',
-              cursor: isTemplateView && !isCreating ? 'not-allowed' : 'text'
+              backgroundColor: isTemplateNameDisabled ? '#f1f5f9' : '#fff',
+              cursor: isTemplateNameDisabled ? 'not-allowed' : 'text',
+              color: isTemplateNameDisabled ? '#64748b' : '#0f172a'
             }}
           />
         </div>
@@ -218,7 +226,6 @@ export function IncidentFormContent({
                 const templateName = e.target.value;
                 if (templateName) {
                   const selectedObj = descriptionTemplates.find(t => t.name === templateName);
-                  // Priorizamos messageTemplate, seguido de description, content, etc.
                   const textToFill = selectedObj?.messageTemplate || selectedObj?.description || selectedObj?.content || selectedObj?.text || templateName;
                   
                   setFormData({ ...formData, description: textToFill });
@@ -278,7 +285,6 @@ export function IncidentFormContent({
                           const templateName = e.target.value;
                           if (templateName) {
                             const selectedObj = advanceTemplates.find(t => t.name === templateName);
-                            // Priorizamos messageTemplate aquí también
                             const textToFill = selectedObj?.messageTemplate || selectedObj?.description || selectedObj?.content || selectedObj?.text || templateName;
 
                             const updatedComments = [...(formData.comments || [])];
@@ -344,7 +350,6 @@ export function IncidentFormContent({
                 const templateName = e.target.value;
                 if (templateName) {
                   const selectedObj = solutionTemplates.find(t => t.name === templateName);
-                  // Priorizamos messageTemplate también en solución
                   const textToFill = selectedObj?.messageTemplate || selectedObj?.description || selectedObj?.solution || selectedObj?.content || templateName;
 
                   setFormData({ ...formData, solution: textToFill });
@@ -370,8 +375,26 @@ export function IncidentFormContent({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', borderTop: '1px solid #e2e8f0', paddingTop: '15px' }}>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-              {isCreating ? 'Guardar Nuevo Incidente' : 'Guardar Cambios'}
+              {isCreating 
+                ? (isTemplateView ? 'Guardar Nueva Plantilla' : 'Guardar Nuevo Incidente') 
+                : 'Guardar Cambios'}
             </button>
+
+            {/* SE MUESTRA ÚNICAMENTE EN PLANTILLAS EXISTENTES (NO AL CREAR) */}
+            {onCreateNotification && isTemplateView && !isCreating && (
+              <button 
+                type="button" 
+                onClick={async () => {
+                  try {
+                    await onCreateNotification();
+                  } catch (err: any) {}
+                }} 
+                style={{ backgroundColor: '#0284c7', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
+              >
+                🚀 Crear Incidente
+              </button>
+            )}
+
             {onSaveAsTemplate && !isTemplateView && (
               <button 
                 type="button" 

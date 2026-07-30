@@ -206,52 +206,63 @@ export function useIncidentManagement() {
     try {
       const payload = buildUnifiedPayload();
       
-      if (isCreating) {
-        const responseData = await incidentService.create(payload);
-
-        const createdIncident = {
-          ...(responseData || {}),
-          ...payload,
-          id: responseData?.id || Date.now(),
-          name: formData.name,
-          title: formData.name
-        };
-        
-        showToast('success', 'Incidente registrado correctamente.');
-        setIsCreating(false);
-        setIncidents(prev => [createdIncident, ...prev.filter(inc => inc.id !== createdIncident.id)]);
-        setSelectedIncident(createdIncident);
-      } else {
-        const responseData = await incidentService.update(selectedIncident?.id, payload);
-
-        showToast('success', 'Incidente actualizado correctamente.');
-
-        if (filterType === 'closed_recent') {
-          setSelectedIncident(null);
+      if (filterType === 'templates') {
+        if (isCreating) {
+          const responseData = await notificationTemplateService.create(payload);
+          showToast('success', 'Plantilla registrada correctamente.');
           setIsCreating(false);
-          setFormData(initialFormState);
-          setAffectedServices([]);
           await fetchInitialData();
+          if (responseData) setSelectedIncident(responseData);
         } else {
-          const updatedIncident = {
+          const responseData = await notificationTemplateService.update(selectedIncident?.id, payload);
+          showToast('success', 'Plantilla actualizada correctamente.');
+          await fetchInitialData();
+          if (responseData) setSelectedIncident(responseData);
+        }
+      } else {
+        if (isCreating) {
+          const responseData = await incidentService.create(payload);
+
+          const createdIncident = {
             ...(responseData || {}),
             ...payload,
-            id: selectedIncident?.id,
+            id: responseData?.id || Date.now(),
             name: formData.name,
             title: formData.name
           };
-
-          setIncidents(prev => [
-            updatedIncident,
-            ...prev.filter(inc => inc.id !== selectedIncident?.id)
-          ]);
-          setSelectedIncident(updatedIncident);
           
-          await fetchInitialData();
-          setIncidents(prev => [
-            updatedIncident,
-            ...prev.filter(inc => inc.id !== selectedIncident?.id)
-          ]);
+          showToast('success', 'Incidente registrado correctamente.');
+          setIsCreating(false);
+          setIncidents(prev => [createdIncident, ...prev.filter(inc => inc.id !== createdIncident.id)]);
+          setSelectedIncident(createdIncident);
+        } else {
+          const responseData = await incidentService.update(selectedIncident?.id, payload);
+
+          showToast('success', 'Incidente actualizado correctamente.');
+
+          if (filterType === 'closed_recent') {
+            setSelectedIncident(null);
+            setIsCreating(false);
+            setFormData(initialFormState);
+            setAffectedServices([]);
+            await fetchInitialData();
+          } else {
+            const updatedIncident = {
+              ...(responseData || {}),
+              ...payload,
+              id: selectedIncident?.id,
+              name: formData.name,
+              title: formData.name
+            };
+
+            setIncidents(prev => [
+              updatedIncident,
+              ...prev.filter(inc => inc.id !== selectedIncident?.id)
+            ]);
+            setSelectedIncident(updatedIncident);
+            
+            await fetchInitialData();
+          }
         }
       }
     } catch (error: any) {
@@ -269,6 +280,22 @@ export function useIncidentManagement() {
 
   const handleCloseIncident = async (currentCommentsFromUI?: any[]) => {
     if (!selectedIncident?.id) return;
+
+    if (filterType === 'templates') {
+      try {
+        await notificationTemplateService.delete(selectedIncident.id);
+        showToast('success', 'Plantilla eliminada correctamente.');
+        setSelectedIncident(null);
+        setIsCreating(false);
+        setFormData(initialFormState);
+        setAffectedServices([]);
+        await fetchInitialData();
+      } catch (error: any) {
+        showToast('error', 'Error al eliminar la plantilla.');
+      }
+      return;
+    }
+
     const solutionText = formData.solution || formData.resolution;
 
     if (!solutionText || solutionText.trim() === '') {

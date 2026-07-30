@@ -111,7 +111,6 @@ export default function IncidentManagementPage() {
       
       triggerToast('success', successMessage);
 
-      // Refrescar las plantillas de notificación locales
       const updatedTemplates = await notificationTemplateService.getAll();
       setNotificationTemplates(Array.isArray(updatedTemplates) ? updatedTemplates : []);
 
@@ -134,6 +133,42 @@ export default function IncidentManagementPage() {
 
       triggerToast('error', errorMessage);
       throw new Error(errorMessage);
+    }
+  };
+
+  // 🚀 Función para crear el incidente a través de la API de notificaciones
+  const handleCreateNotification = async () => {
+    try {
+      if (!formData) return;
+
+      const payload = {
+        ...formData,
+        affectedServices: affectedServices && affectedServices.length > 0 ? affectedServices : []
+      };
+
+      // Realiza la petición POST a tu API endpoint
+      const response = await fetch('http://localhost:8080/v1/api/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || 'Error en la respuesta del servidor al crear notificación.');
+      }
+
+      triggerToast('success', '¡Incidente / Notificación creado exitosamente!');
+
+      if (typeof fetchInitialData === 'function') {
+        await fetchInitialData();
+      }
+    } catch (error: any) {
+      const errorMsg = error?.message || 'Error de conexión al crear la notificación.';
+      triggerToast('error', errorMsg);
+      throw new Error(errorMsg);
     }
   };
 
@@ -163,8 +198,6 @@ export default function IncidentManagementPage() {
   };
 
   const activeToast = localToast || toast;
-
-  // Si el filtro está en 'templates', la barra lateral izquierda usa notificationTemplates
   const currentListSource = filterType === 'templates' ? notificationTemplates : incidents;
 
   return (
@@ -196,6 +229,7 @@ export default function IncidentManagementPage() {
           onSubmit={handleSubmit}
           onCloseIncident={handleCloseOrDelete}
           onSaveAsTemplate={handleSaveAsTemplateDirectly}
+          onCreateNotification={handleCreateNotification}
           onCancelCreation={() => setIsCreating(false)}
           onTemplateSelect={handleTemplateSelect}
           showToast={triggerToast}
@@ -209,7 +243,7 @@ export default function IncidentManagementPage() {
       )}
 
       <IncidentSidebarRight 
-        hasFormData={!isCreating && !!selectedIncident}
+        hasFormData={isCreating || !!selectedIncident}
         onCopyTemplate={handleCopyTemplate}
         onApplyFirstStartTime={handleApplyFirstStartTime}
         onApplyFirstEndTime={handleApplyFirstEndTime}
