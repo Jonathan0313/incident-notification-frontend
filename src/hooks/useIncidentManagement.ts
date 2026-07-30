@@ -243,19 +243,31 @@ export function useIncidentManagement() {
   // ==========================================
   // FUNCIÓN COPIAR PLANTILLA CON FORMATO HTML
   // ==========================================
-  const handleCopyTemplate = async () => {
+ const handleCopyTemplate = async () => {
     if (!formData) return;
 
     const rawJiraInput = formData.jira || '';
-    const ticketCode = rawJiraInput.includes('/') ? rawJiraInput.split('/').pop() : rawJiraInput;
-    const fullJiraUrl = rawJiraInput.startsWith('http') 
-      ? rawJiraInput 
-      : `https://tu-empresa.atlassian.net/browse/${ticketCode}`;
+    
+    let ticketCode = '';
+    let fullJiraUrl = '';
 
-    // Construcción de texto plano limpio
+    if (typeof rawJiraInput === 'string' && rawJiraInput.trim() !== '') {
+      const trimmedJira = rawJiraInput.trim();
+      
+      if (trimmedJira.startsWith('http')) {
+        fullJiraUrl = trimmedJira;
+        const parts = trimmedJira.split('/');
+        ticketCode = parts[parts.length - 1] || trimmedJira;
+      } else {
+        ticketCode = trimmedJira;
+        fullJiraUrl = `https://nequi.atlassian.net/browse/${ticketCode}`;
+      }
+    }
+
     let servicesPlainText = "Servicios Afectados:\n";
-    if (affectedServices && affectedServices.length > 0) {
+    if (Array.isArray(affectedServices) && affectedServices.length > 0) {
       affectedServices.forEach((srv: any) => {
+        if (!srv) return;
         const statusUpper = (srv.status || 'OK').toUpperCase();
         let icon = '✔';
         if (statusUpper === 'TOTAL') icon = '❌';
@@ -263,10 +275,11 @@ export function useIncidentManagement() {
 
         const name = srv.nameService || srv.name || 'Sin servicio';
         const type = srv.status || 'OK';
-        const start = srv.startTime || 'N/A';
-        const end = srv.endTime || 'N/A';
+        const start = srv.startTime || '';
+        const end = srv.endTime || '';
 
-        servicesPlainText += `- ${icon} Servicio: ${name} | Tipo de Afectación: ${type} | Hora Inicio: ${start} | Hora Fin: ${end}\n`;
+        const timeInfo = (start || end) ? ` | Hora Inicio: ${start} | Hora Fin: ${end}` : '';
+        servicesPlainText += `- ${icon} Servicio: ${name} | Tipo de Afectación: ${type}${timeInfo}\n`;
       });
     } else {
       servicesPlainText += "- Ninguno\n";
@@ -275,7 +288,7 @@ export function useIncidentManagement() {
     const rawAdvances = formData.advances || formData.comments || formData.updates || [];
     let advancesPlainText = "";
     if (Array.isArray(rawAdvances) && rawAdvances.length > 0) {
-      const validAdvances = rawAdvances.filter((adv: any) => (adv.content || adv.message || adv.text || '').trim() !== '');
+      const validAdvances = rawAdvances.filter((adv: any) => adv && (adv.content || adv.message || adv.text || '').trim() !== '');
       if (validAdvances.length > 0) {
         validAdvances.forEach((adv: any, idx: number) => {
           const text = adv.content || adv.message || adv.text || '';
@@ -298,9 +311,9 @@ export function useIncidentManagement() {
 
     const finalPlainText = plainTextParts.filter(Boolean).join('\n');
 
-    // HTML limpio SIN etiquetas <a> para evitar que se autogenere como hipervínculo o enlace azul
-    const servicesRows = (affectedServices || [])
+    const servicesRows = (Array.isArray(affectedServices) ? affectedServices : [])
       .map((srv: any) => {
+        if (!srv) return '';
         const statusUpper = (srv.status || 'OK').toUpperCase();
         let icon = '✅';
         if (statusUpper === 'TOTAL') icon = '❌';
@@ -308,49 +321,60 @@ export function useIncidentManagement() {
 
         return `
           <tr>
-            <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${icon}</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px;">${srv.nameService || srv.name || 'Sin servicio'}</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px;">${srv.status || 'OK'}</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px;">${srv.startTime || 'N/A'}</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px;">${srv.endTime || 'N/A'}</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center; color: #000000; text-decoration: none;">${icon}</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px; color: #000000; text-decoration: none;">${srv.nameService || srv.name || 'Sin servicio'}</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px; color: #000000; text-decoration: none;">${srv.status || 'OK'}</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px; color: #000000; text-decoration: none;">${srv.startTime || ''}</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px; color: #000000; text-decoration: none;">${srv.endTime || ''}</td>
           </tr>
         `;
-      })
-      .join('');
-
-    const commentsHtml = rawAdvances
-      .map((comment: any, idx: number) => {
-        const text = comment?.content || comment?.message || comment?.text || '';
-        return text ? `<li><b>Avance ${idx + 1}:</b> ${text}</li>` : '';
       })
       .filter(Boolean)
       .join('');
 
+    const commentsHtml = Array.isArray(rawAdvances) 
+      ? rawAdvances
+          .map((comment: any, idx: number) => {
+            const text = comment?.content || comment?.message || comment?.text || '';
+            return text ? `<li style="color: #000000; text-decoration: none;"><b style="color: #000000;">Avance ${idx + 1}:</b> ${text}</li>` : '';
+          })
+          .filter(Boolean)
+          .join('')
+      : '';
+
+    // Estructura HTML usando un elemento span en línea puro para el texto y el enlace, evitando que el navegador expanda el formato a los bloques superiores
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; font-size: 13px; color: #000000;">
-        <p style="font-weight: bold; margin: 0 0 5px 0;">Servicios Afectados:</p>
-        <table style="border-collapse: collapse; width: 100%; margin-bottom: 12px; font-size: 12px;">
-          <thead>
-            <tr style="background-color: #f3f4f6;">
-              <th style="border: 1px solid #d1d5db; padding: 6px;">ESTADO</th>
-              <th style="border: 1px solid #d1d5db; padding: 6px;">SERVICIO</th>
-              <th style="border: 1px solid #d1d5db; padding: 6px;">TIPO DE AFECTACIÓN</th>
-              <th style="border: 1px solid #d1d5db; padding: 6px;">HORA INICIO</th>
-              <th style="border: 1px solid #d1d5db; padding: 6px;">HORA FIN</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${servicesRows || '<tr><td colspan="5" style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">Ninguno</td></tr>'}
-          </tbody>
-        </table>
-        ${formData.impact ? `<p style="margin: 4px 0;"><b>Impacto A Usuarios:</b> ${formData.impact}</p>` : ''}
-        ${formData.functionality ? `<p style="margin: 4px 0;"><b>Funcionalidades OK:</b> ${formData.functionality}</p>` : ''}
-        ${ticketCode ? `<p style="margin: 4px 0;"><b>Jira:</b> ${ticketCode} (${fullJiraUrl})</p>` : ''}
-        ${(formData.partnerCase || formData.aliasedCase)?.trim() ? `<p style="margin: 4px 0;"><b>Caso Aliado:</b> ${formData.partnerCase || formData.aliasedCase}</p>` : ''}
-        ${formData.affectedComponent ? `<p style="margin: 4px 0;"><b>Componente Afectado:</b> ${formData.affectedComponent}</p>` : ''}
-        ${formData.description ? `<p style="margin: 4px 0;"><b>Descripción de la falla:</b> ${formData.description}</p>` : ''}
-        ${commentsHtml ? `<ul style="padding-left: 20px; margin: 8px 0;">${commentsHtml}</ul>` : ''}
-        ${(formData.solution || formData.resolution)?.trim() ? `<p style="margin: 4px 0;"><b>Solución:</b> ${formData.solution || formData.resolution}</p>` : ''}
+        <div style="margin-bottom: 8px;">
+          <p style="font-weight: bold; margin: 0 0 5px 0; color: #000000;">Servicios Afectados:</p>
+          <table style="border-collapse: collapse; width: 100%; font-size: 12px; color: #000000;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">ESTADO</th>
+                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">SERVICIO</th>
+                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">TIPO DE AFECTACIÓN</th>
+                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">HORA INICIO</th>
+                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">HORA FIN</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${servicesRows || '<tr><td colspan="5" style="border: 1px solid #d1d5db; padding: 6px; text-align: center; color: #000000;">Ninguno</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Impacto A Usuarios:</b> ${formData.impact || ''}</div>
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Funcionalidades OK:</b> ${formData.functionality || ''}</div>
+        
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Jira:</b> ${ticketCode ? `<a href="${fullJiraUrl}" target="_blank" style="color: #0052CC; text-decoration: underline;">${ticketCode}</a>` : ''}</div>
+
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Caso Aliado:</b> ${formData.partnerCase || formData.aliasedCase || ''}</div>
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Componente Afectado:</b> ${formData.affectedComponent || ''}</div>
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Descripción de la falla:</b> ${formData.description || ''}</div>
+        
+        ${commentsHtml ? `<ul style="padding-left: 20px; margin: 8px 0; color: #000000;">${commentsHtml}</ul>` : ''}
+        
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Solución:</b> ${formData.solution || formData.resolution || ''}</div>
       </div>
     `;
 
