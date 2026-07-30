@@ -6,7 +6,8 @@ interface IncidentSidebarRightProps {
   onApplyFirstAffectationType: () => void;
   onSetCurrentStartTimeFirst: () => void;
   onSetCurrentEndTimeFirst: () => void;
-  onMatchEndTimeWithStartTime: () => void; // Prop para igualar fin con inicio
+  onMatchEndTimeWithStartTime: () => void;
+  onClearServiceTimes: () => void;
 }
 
 export function IncidentSidebarRight({
@@ -18,6 +19,7 @@ export function IncidentSidebarRight({
   onSetCurrentStartTimeFirst,
   onSetCurrentEndTimeFirst,
   onMatchEndTimeWithStartTime,
+  onClearServiceTimes,
 }: IncidentSidebarRightProps) {
   return (
     <div style={{ width: '220px', minWidth: '220px', backgroundColor: '#ffffff', borderRadius: '8px', padding: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -73,7 +75,6 @@ export function IncidentSidebarRight({
               🏁 Igualar Hora Fin
             </button>
             
-            {/* Botón corregido con el mismo color azul estándar (#2563eb) */}
             <button 
               type="button" 
               onClick={onMatchEndTimeWithStartTime}
@@ -88,6 +89,16 @@ export function IncidentSidebarRight({
               style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '7px 8px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', width: '100%', fontSize: '11px' }}
             >
               ⚠️ Igualar Tipo Afectación
+            </button>
+
+            <div style={{ borderTop: '1px dashed #cbd5e1', margin: '4px 0' }}></div>
+
+            <button 
+              type="button" 
+              onClick={onClearServiceTimes}
+              style={{ backgroundColor: '#64748b', color: 'white', border: 'none', padding: '7px 8px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', width: '100%', fontSize: '11px' }}
+            >
+              🧹 Limpiar Horas
             </button>
           </div>
         </div>

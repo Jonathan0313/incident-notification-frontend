@@ -50,6 +50,7 @@ export default function IncidentManagementPage() {
     handleCloseIncident = () => {},
     handleTemplateSelect = () => {},
     fetchInitialData = async () => {},
+    handleClearServiceTimes = () => {}, // 👈 1. Añadido aquí para evitar el error de TypeScript
   } = management;
 
   // Cargar plantillas de notificación para la barra lateral
@@ -136,7 +137,6 @@ export default function IncidentManagementPage() {
     }
   };
 
-  // 🚀 Función para crear el incidente a través de la API de notificaciones
   const handleCreateNotification = async () => {
     try {
       if (!formData) return;
@@ -146,7 +146,6 @@ export default function IncidentManagementPage() {
         affectedServices: affectedServices && affectedServices.length > 0 ? affectedServices : []
       };
 
-      // Realiza la petición POST a tu API endpoint
       const response = await fetch('http://localhost:8080/v1/api/notifications', {
         method: 'POST',
         headers: {
@@ -251,6 +250,7 @@ export default function IncidentManagementPage() {
         onSetCurrentStartTimeFirst={handleSetCurrentStartTimeFirst}
         onSetCurrentEndTimeFirst={handleSetCurrentEndTimeFirst}
         onMatchEndTimeWithStartTime={handleMatchEndTimeWithStartTime}
+        onClearServiceTimes={handleClearServiceTimes} // 👈 2. Prop pasada correctamente a la barra lateral
       />
 
       {activeToast && <Toast type={activeToast.type} message={activeToast.message} />}

@@ -121,6 +121,21 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     setFormData({ ...formData, affectedServices: updatedServices } as any);
   };
 
+  // 🚀 FUNCIÓN AÑADIDA: Limpiar las horas de inicio y fin de todos los servicios afectados
+  const handleClearServiceTimes = () => {
+    if (!formData) return;
+    const services = (formData as any).affectedServices || [];
+    if (services.length === 0) return;
+
+    const updatedServices = services.map((srv: any) => ({
+      ...srv,
+      startTime: '',
+      endTime: ''
+    }));
+
+    setFormData({ ...formData, affectedServices: updatedServices } as any);
+  };
+
   useEffect(() => {
     if (selectedIncident && !isCreating) {
       isInitialMount.current = true;
@@ -305,7 +320,6 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
   const handleCloseIncident = async (currentAdvancesFromUI?: any[]) => {
     if (!formData) return;
     
-    // Unimos los comentarios de la UI si los pasan directamente, o respaldamos con los del formData
     const activeComments = currentAdvancesFromUI || formData.comments || (formData as any).advances || (formData as any).updates || [];
 
     const formWithComments = {
@@ -496,5 +510,6 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     handleApplyFirstAffectationType,
     handleSetCurrentStartTimeFirstService,
     handleSetCurrentEndTimeFirstService,
+    handleClearServiceTimes, // 👈 Exportado aquí correctamente
   };
 }

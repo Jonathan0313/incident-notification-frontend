@@ -42,6 +42,19 @@ export function useIncidentManagement() {
 
   const { handleCopyTemplate } = useIncidentTemplate(formData, affectedServices, showToast);
 
+  // 🚀 Función para limpiar las horas (startTime y endTime) de todos los servicios afectados
+  const handleClearServiceTimes = () => {
+    console.log("¡Ejecutando limpieza de horas!", affectedServices);
+    setAffectedServices((prevServices: any[]) =>
+      prevServices.map((service: any) => ({
+        ...service,
+        startTime: '',
+        endTime: ''
+      }))
+    );
+    showToast('success', 'Las horas de todos los servicios han sido limpiadas.');
+  };
+
   useEffect(() => {
     fetchInitialData();
   }, [filterType]);
@@ -257,7 +270,6 @@ export function useIncidentManagement() {
               affectedServices: affectedServices
             };
 
-            // 🚀 Coloca el incidente actualizado en la primera posición sin llamar a fetchInitialData() para evitar que se desordene
             setIncidents(prev => [
               updatedIncident,
               ...prev.filter(inc => inc.id !== selectedIncident?.id)
@@ -408,6 +420,7 @@ export function useIncidentManagement() {
     handleCloseIncident, 
     handleTemplateSelect, 
     fetchInitialData,
-    ...affectedServicesManager
+    ...affectedServicesManager,
+    handleClearServiceTimes // 👈 Colocado al final para asegurar que sobrescriba y exponga la función correctamente
   };
 }
