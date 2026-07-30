@@ -1,20 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useIncidentManagement } from '../../hooks/useIncidentManagement';
 import { IncidentSidebarLeft } from './components/IncidentSidebarLeft';
 import { IncidentSidebarRight } from './components/IncidentSidebarRight';
 import { IncidentFormContent } from './components/IncidentFormContent';
 import { Toast } from './components/ui/Toast';
 import { notificationTemplateService } from '../../services/notificationTemplateService';
+import { templateService } from '../../services/templateService';
 
 export default function IncidentManagementPage() {
   const management = useIncidentManagement() || {};
   
   const [localToast, setLocalToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  
+  // 1. Estado para la barra lateral (de notificationTemplateService)
+  const [notificationTemplates, setNotificationTemplates] = useState<any[]>([]);
+  
+  // 2. Estado independiente para los listbox y selectores del formulario (de templateService)
+  const [formTemplates, setFormTemplates] = useState<any[]>([]);
 
   const {
     incidents = [],
     availableServices = [],
-    templates = [],
     selectedIncident = null,
     setSelectedIncident = () => {},
     isCreating = false,
@@ -24,7 +30,7 @@ export default function IncidentManagementPage() {
     formData = {},
     setFormData = () => {},
     affectedServices = [],
-    setAffectedServices = () => {},
+    setAffectedServices = (() => {}) as React.Dispatch<React.SetStateAction<any[]>>,
     toast = null,
     showToast,
     setFilterType = () => {},
@@ -45,6 +51,32 @@ export default function IncidentManagementPage() {
     handleTemplateSelect = () => {},
     fetchInitialData = async () => {},
   } = management;
+
+  // Cargar plantillas de notificación para la barra lateral
+  useEffect(() => {
+    const loadNotificationTemplates = async () => {
+      try {
+        const data = await notificationTemplateService.getAll();
+        setNotificationTemplates(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error al cargar las plantillas de notificación:', error);
+      }
+    };
+    loadNotificationTemplates();
+  }, []);
+
+  // Cargar plantillas para alimentar los listbox y selectores del formulario
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const data = await templateService.getAll();
+        setFormTemplates(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error al cargar plantillas para los listbox:', error);
+      }
+    };
+    loadTemplates();
+  }, []);
 
   const triggerToast = (type: 'success' | 'error', message: string) => {
     if (typeof showToast === 'function') {
@@ -79,6 +111,10 @@ export default function IncidentManagementPage() {
       
       triggerToast('success', successMessage);
 
+      // Refrescar las plantillas de notificación locales
+      const updatedTemplates = await notificationTemplateService.getAll();
+      setNotificationTemplates(Array.isArray(updatedTemplates) ? updatedTemplates : []);
+
       if (typeof fetchInitialData === 'function') {
         await fetchInitialData();
       }
@@ -101,17 +137,20 @@ export default function IncidentManagementPage() {
     }
   };
 
-  // Manejador unificado para cerrar incidentes o eliminar plantillas según la vista
   const handleCloseOrDelete = async (currentComments?: any[]) => {
     if (filterType === 'templates') {
       try {
         if (!selectedIncident?.id) return;
-        await notificationTemplateService.delete(selectedIncident.id);
+        await notificationTemplateService.delete(String(selectedIncident.id));
         triggerToast('success', 'Plantilla eliminada exitosamente.');
-        setSelectedIncident(null);
-        setIsCreating(false);
-        setFormData({});
-        setAffectedServices([]);
+        
+        if (typeof setSelectedIncident === 'function') setSelectedIncident(null);
+        if (typeof setIsCreating === 'function') setIsCreating(false);
+        if (typeof setFormData === 'function') setFormData({});
+        if (typeof setAffectedServices === 'function') setAffectedServices([]);
+        
+        const updatedTemplates = await notificationTemplateService.getAll();
+        setNotificationTemplates(Array.isArray(updatedTemplates) ? updatedTemplates : []);
         await fetchInitialData();
       } catch (error: any) {
         const errData = error?.response?.data;
@@ -125,11 +164,14 @@ export default function IncidentManagementPage() {
 
   const activeToast = localToast || toast;
 
+  // Si el filtro está en 'templates', la barra lateral izquierda usa notificationTemplates
+  const currentListSource = filterType === 'templates' ? notificationTemplates : incidents;
+
   return (
     <div style={{ display: 'flex', gap: '15px', padding: '15px', height: 'calc(100vh - 40px)', boxSizing: 'border-box', backgroundColor: '#f1f5f9', position: 'relative' }}>
       
       <IncidentSidebarLeft 
-        incidents={filterType === 'templates' ? templates : incidents}
+        incidents={currentListSource}
         selectedIncident={selectedIncident}
         isCreating={isCreating}
         loading={loading}
@@ -146,7 +188,7 @@ export default function IncidentManagementPage() {
           affectedServices={affectedServices}
           availableServices={availableServices}
           isCreating={isCreating}
-          templates={templates}
+          templates={formTemplates}
           filterType={filterType}
           onAddService={handleAddService}
           onDeleteService={handleDeleteService}

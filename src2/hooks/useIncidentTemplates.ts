@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { Incident } from '../domain/incident';
-import { notificationTemplateService, type NotificationTemplate } from '../services/notificationTemplateService';
+// 🟢 Cambiamos la importación al servicio correcto de templates (/v1/api/templates)
+import { templateService } from '../services/templateService'; 
 
+// (El resto de la interfaz se mantiene igual...)
 interface UseIncidentTemplatesProps {
   formData: Incident | null;
   selectedIncident: Incident | null;
@@ -25,12 +27,13 @@ export function useIncidentTemplates({
   refreshCurrentList,
   showToast,
 }: UseIncidentTemplatesProps) {
-  const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
-  const [dropdownTemplates, setDropdownTemplates] = useState<NotificationTemplate[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [dropdownTemplates, setDropdownTemplates] = useState<any[]>([]);
 
   const fetchTemplates = async () => {
     try {
-      const data = await notificationTemplateService.getAll();
+      // 🟢 Usamos templateService para consultar /v1/api/templates
+      const data = await templateService.getAll();
       setTemplates(data || []);
       setDropdownTemplates(data || []);
     } catch (error: any) {
@@ -54,7 +57,7 @@ export function useIncidentTemplates({
     if (!formData) return;
 
     try {
-      const templateData: NotificationTemplate = {
+      const templateData: any = {
         name: formData.name || 'Nueva Plantilla',
         impact: formData.impact || '',
         functionality: (formData as any).functionality || 'Ok',
@@ -66,7 +69,8 @@ export function useIncidentTemplates({
         affectedServices: (formData as any).affectedServices || [],
       };
 
-      await notificationTemplateService.create(templateData);
+      // 🟢 Guardamos usando templateService
+      await templateService.create(templateData);
       showToast('success', '¡Plantilla guardada exitosamente!');
       await fetchTemplates();
     } catch (error: any) {
@@ -88,7 +92,7 @@ export function useIncidentTemplates({
     }
 
     try {
-      const templateData: NotificationTemplate = {
+      const templateData: any = {
         id: String(targetId),
         name: String(formData.name || ''),
         impact: String(formData.impact || ''),
@@ -103,7 +107,8 @@ export function useIncidentTemplates({
           : [],
       };
 
-      await notificationTemplateService.update(String(targetId), templateData);
+      // 🟢 Actualizamos usando templateService
+      await templateService.update(String(targetId), templateData);
       showToast('success', 'Plantilla actualizada exitosamente.');
       await fetchTemplates();
     } catch (error: any) {
@@ -121,7 +126,8 @@ export function useIncidentTemplates({
     if (!window.confirm('¿Estás seguro de eliminar esta plantilla?')) return;
 
     try {
-      await notificationTemplateService.delete(selectedIncident.id.toString());
+      // 🟢 Eliminamos usando templateService
+      await templateService.delete(selectedIncident.id.toString());
       showToast('success', 'Plantilla eliminada exitosamente.');
       
       setIsCreating(false);
