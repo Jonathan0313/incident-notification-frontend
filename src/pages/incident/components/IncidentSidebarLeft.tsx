@@ -1,14 +1,12 @@
-import type { Incident } from "../../../domain/incident";
-
 interface IncidentSidebarLeftProps {
-  incidents: Incident[];
-  selectedIncident: Incident | null;
+  incidents: any[];
+  selectedIncident: any | null;
   isCreating: boolean;
   loading: boolean;
-  filterType: 'open' | 'closed_recent' | 'templates'; // <--- Añadimos 'templates'
-  onSelectIncident: (incident: Incident) => void;
+  filterType: 'open' | 'closed_recent' | 'templates';
+  onSelectIncident: (incident: any) => void;
   onStartCreate: () => void;
-  onFilterChange: (type: 'open' | 'closed_recent' | 'templates') => void; // <--- Actualizamos el tipo
+  onFilterChange: (type: 'open' | 'closed_recent' | 'templates') => void;
 }
 
 export function IncidentSidebarLeft({
@@ -63,23 +61,33 @@ export function IncidentSidebarLeft({
           </p>
         ) : (
           <div>
-            {incidents.map((inc) => (
-              <div 
-                key={inc.id} 
-                onClick={() => onSelectIncident(inc)}
-                style={{ 
-                  cursor: 'pointer', 
-                  padding: '10px', 
-                  marginBottom: '8px', 
-                  borderRadius: '6px', 
-                  backgroundColor: !isCreating && selectedIncident?.id === inc.id ? '#e2e8f0' : 'transparent',
-                  borderLeft: filterType === 'closed_recent' ? '3px solid #10b981' : filterType === 'templates' ? '3px solid #8b5cf6' : '3px solid transparent'
-                }}
-              >
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>{inc.name}</div>
-                {inc.jira && <div style={{ fontSize: '11px', color: '#2563eb', marginTop: '4px' }}>📌 {inc.jira}</div>}
-              </div>
-            ))}
+            {incidents.map((item, index) => {
+              const itemId = item.id || item.name;
+              const itemName = item.name || item.title || 'Sin nombre';
+              const isSelected = !isCreating && selectedIncident?.id === item.id;
+
+              return (
+                <div 
+                  key={itemId || index} 
+                  onClick={() => onSelectIncident(item)}
+                  style={{ 
+                    cursor: 'pointer', 
+                    padding: '10px', 
+                    marginBottom: '8px', 
+                    borderRadius: '6px', 
+                    backgroundColor: isSelected ? '#e2e8f0' : 'transparent',
+                    borderLeft: filterType === 'closed_recent' ? '3px solid #10b981' : filterType === 'templates' ? '3px solid #8b5cf6' : '3px solid transparent'
+                  }}
+                >
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{itemName}</div>
+                  {filterType === 'templates' ? (
+                    <div style={{ fontSize: '11px', color: '#8b5cf6', marginTop: '4px' }}>📄 {item.typeTemplate || 'Plantilla'}</div>
+                  ) : (
+                    item.jira && <div style={{ fontSize: '11px', color: '#2563eb', marginTop: '4px' }}>📌 {item.jira}</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

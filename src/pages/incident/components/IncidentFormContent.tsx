@@ -55,7 +55,6 @@ export function IncidentFormContent({
       if (setTableError) setTableError(true);
       if (showToast) showToast('error', 'Debe agregar al menos un servicio afectado.');
       
-      // Desplazar la vista hacia la tabla para que el usuario vea el error
       if (tableContainerRef.current) {
         tableContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -82,7 +81,6 @@ export function IncidentFormContent({
       return;
     }
 
-    // Si todo es correcto
     if (setTableError) setTableError(false);
     onSubmit(e);
   };
@@ -228,7 +226,10 @@ export function IncidentFormContent({
               type="button" 
               onClick={() => {
                 const currentAdv = formData.advances || [];
-                setFormData({ ...formData, advances: [...currentAdv, { message: '' }] });
+                setFormData({ 
+                  ...formData, 
+                  advances: [...currentAdv, { sequence: currentAdv.length + 1, content: '' }] 
+                });
               }} 
               style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}
             >
@@ -254,7 +255,8 @@ export function IncidentFormContent({
                             const found = advanceTemplates.find(t => t.name === e.target.value);
                             if (found) {
                               const updated = [...formData.advances];
-                              updated[index].message = found.messageTemplate;
+                              updated[index].sequence = index + 1;
+                              updated[index].content = found.messageTemplate;
                               setFormData({ ...formData, advances: updated });
                             }
                             e.target.value = '';
@@ -270,7 +272,9 @@ export function IncidentFormContent({
                       <button 
                         type="button" 
                         onClick={() => {
-                          const updated = formData.advances.filter((_: any, i: number) => i !== index);
+                          const updated = formData.advances
+                            .filter((_: any, i: number) => i !== index)
+                            .map((item: any, i: number) => ({ ...item, sequence: i + 1 }));
                           setFormData({ ...formData, advances: updated });
                         }} 
                         style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
@@ -282,10 +286,11 @@ export function IncidentFormContent({
 
                   <textarea 
                     rows={3}
-                    value={adv.message || ''}
+                    value={adv.content || ''}
                     onChange={(e) => {
                       const updated = [...formData.advances];
-                      updated[index].message = e.target.value;
+                      updated[index].sequence = index + 1;
+                      updated[index].content = e.target.value;
                       setFormData({ ...formData, advances: updated });
                     }}
                     style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', resize: 'vertical' }}

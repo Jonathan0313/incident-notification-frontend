@@ -16,7 +16,13 @@ export default function IncidentManagementPage() {
   const [filterType, setFilterType] = useState<'open' | 'closed_recent' | 'templates'>('open');
   const [loading, setLoading] = useState<boolean>(false);
   
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<any>({
+    partnerCase: '',
+    aliasedCase: '',
+    comments: [],
+    updates: [],
+    advances: []
+  });
   const [affectedServices, setAffectedServices] = useState<any[]>([]);
   
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState<boolean>(false);
@@ -24,24 +30,49 @@ export default function IncidentManagementPage() {
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 4500);
   };
 
   useEffect(() => {
-    fetchServicesOnly();
-  }, []);
+    fetchInitialData();
+  }, [filterType]);
 
-  const fetchServicesOnly = async () => {
+  // 🛡️ Sincroniza automáticamente aliasedCase con partnerCase para la BD
+  useEffect(() => {
+    if (formData?.aliasedCase && formData?.partnerCase !== formData?.aliasedCase) {
+      setFormData((prev: any) => ({
+        ...prev,
+        partnerCase: prev.aliasedCase
+      }));
+    }
+  }, [formData?.aliasedCase]);
+
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      
-      // Únicamente llamamos a la API de servicios que sí funciona
+
       const srvRes = await axiosClient.get('/v1/api/services/all').catch(() => ({ data: [] }));
       const rawServices = srvRes.data;
       setAvailableServices(Array.isArray(rawServices) ? rawServices : (rawServices?.content || rawServices?.data || []));
 
+      const tplRes = await axiosClient.get('/v1/api/notification-templates').catch(() => ({ data: [] }));
+      const rawTpl = tplRes.data;
+      setTemplates(Array.isArray(rawTpl) ? rawTpl : (rawTpl?.content || rawTpl?.data || []));
+
+      if (filterType === 'open') {
+        const openRes = await axiosClient.get('/v1/api/notifications/open').catch(() => ({ data: [] }));
+        const rawOpen = openRes.data;
+        setIncidents(Array.isArray(rawOpen) ? rawOpen : (rawOpen?.content || rawOpen?.data || []));
+      } else if (filterType === 'closed_recent') {
+        const closedRes = await axiosClient.get('/v1/api/notifications/closed/recent').catch(() => ({ data: [] }));
+        const rawClosed = closedRes.data;
+        setIncidents(Array.isArray(rawClosed) ? rawClosed : (rawClosed?.content || rawClosed?.data || []));
+      } else if (filterType === 'templates') {
+        setIncidents(Array.isArray(rawTpl) ? rawTpl : (rawTpl?.content || rawTpl?.data || []));
+      }
+
     } catch (error) {
-      showToast('error', 'Error al cargar los servicios.');
+      showToast('error', 'Error al cargar los datos iniciales.');
     } finally {
       setLoading(false);
     }
@@ -50,15 +81,65 @@ export default function IncidentManagementPage() {
   const handleStartCreate = () => {
     setIsCreating(true);
     setSelectedIncident(null);
-    setFormData({});
+    setFormData({ 
+      partnerCase: '', 
+      aliasedCase: '',
+      comments: [], 
+      updates: [], 
+      advances: [] 
+    });
     setAffectedServices([]);
   };
 
-  const handleSelectIncident = (inc: any) => {
+  const handleSelectIncident = async (inc: any) => {
     setIsCreating(false);
     setSelectedIncident(inc);
-    setFormData(inc);
-    setAffectedServices(inc.affectedServices || []);
+    
+    const initialAdvances = inc.advances || inc.comments || inc.updates || [];
+    const caseValue = inc.partnerCase || inc.aliasedCase || '';
+
+    setFormData({
+      ...inc,
+      partnerCase: caseValue,
+      aliasedCase: caseValue,
+      comments: initialAdvances,
+      updates: initialAdvances,
+      advances: initialAdvances
+    });
+    setAffectedServices(inc.affectedServices || inc.services || []);
+
+    if (!inc?.id) return;
+
+    try {
+      setLoading(true);
+      const res = await axiosClient.get(`/v1/api/notifications/${inc.id}`);
+      const fullData = res.data;
+      
+      if (fullData.resolution && !fullData.solution) {
+        fullData.solution = fullData.resolution;
+      } else if (fullData.solution && !fullData.resolution) {
+        fullData.resolution = fullData.solution;
+      }
+
+      const resolvedAdvances = fullData.advances || fullData.comments || fullData.updates || inc.advances || inc.comments || [];
+      const resolvedCase = fullData.partnerCase || fullData.aliasedCase || inc.partnerCase || inc.aliasedCase || '';
+
+      setFormData({
+        ...inc,
+        ...fullData,
+        partnerCase: resolvedCase,
+        aliasedCase: resolvedCase,
+        comments: resolvedAdvances,
+        updates: resolvedAdvances,
+        advances: resolvedAdvances
+      });
+      setAffectedServices(fullData.affectedServices || inc.affectedServices || []);
+    } catch (error) {
+      console.error("Error al cargar el detalle completo del incidente:", error);
+      showToast('error', 'No se pudieron actualizar todos los detalles, usando datos locales.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddService = () => {
@@ -92,7 +173,7 @@ export default function IncidentManagementPage() {
 
   const handleApplyFirstAffectationType = () => {
     if (affectedServices.length === 0) return;
-    const firstType = affectedServices[0].affectationType;
+    const firstType = affectedServices[0].status;
     const updated = affectedServices.map(s => ({ ...s, status: firstType }));
     setAffectedServices(updated);
   };
@@ -100,7 +181,19 @@ export default function IncidentManagementPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = { ...formData, affectedServices };
+      // 🔍 Priorizamos formData.advances que es donde escribe el componente hijo
+      const currentAdvances = formData.advances || formData.comments || formData.updates || [];
+      const finalPartnerCase = formData.partnerCase || formData.aliasedCase || null;
+
+      const payload = { 
+        ...formData, 
+        partnerCase: finalPartnerCase,
+        aliasedCase: finalPartnerCase,
+        affectedServices,
+        comments: currentAdvances,
+        updates: currentAdvances,
+        advances: currentAdvances
+      };
       
       if (isCreating) {
         await axiosClient.post('/v1/api/notifications', payload);
@@ -111,8 +204,85 @@ export default function IncidentManagementPage() {
         showToast('success', 'Incidente actualizado correctamente.');
       }
       
+      fetchInitialData();
     } catch (error: any) {
-      showToast('error', error?.response?.data?.message || 'Error al guardar.');
+      console.error("DATA DEL ERROR:", error?.response?.data);
+
+      const errorData = error?.response?.data;
+      let errorMessage = 'Error al guardar.';
+
+      if (errorData && typeof errorData === 'object' && !Array.isArray(errorData)) {
+        const messages = Object.values(errorData);
+        if (messages.length > 0) {
+          errorMessage = messages.join(' | ');
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } else if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      }
+
+      showToast('error', errorMessage);
+    }
+  };
+
+  const handleCloseIncident = async () => {
+    if (!selectedIncident?.id) return;
+
+    const solutionText = formData.solution || formData.resolution;
+
+    if (!solutionText || solutionText.trim() === '') {
+      showToast('error', 'El campo de solución es obligatorio para cerrar el incidente.');
+      return;
+    }
+
+    for (let i = 0; i < affectedServices.length; i++) {
+      if (!affectedServices[i].endTime || affectedServices[i].endTime.trim() === '') {
+        showToast('error', `La hora fin del servicio #${i + 1} (${affectedServices[i].nameService || 'Sin nombre'}) es obligatoria.`);
+        return;
+      }
+    }
+
+    try {
+      // 🔍 Priorizamos formData.advances para asegurar que viajen al cerrar
+      const currentAdvances = formData.advances || formData.comments || formData.updates || [];
+      const finalPartnerCase = formData.partnerCase || formData.aliasedCase || null;
+
+      const payload = { 
+        ...formData, 
+        partnerCase: finalPartnerCase,
+        aliasedCase: finalPartnerCase,
+        solution: solutionText,
+        resolution: solutionText, 
+        affectedServices,
+        comments: currentAdvances,
+        updates: currentAdvances,
+        advances: currentAdvances
+      };
+      
+      await axiosClient.put(`/v1/api/notifications/${selectedIncident.id}/close`, payload);
+      
+      showToast('success', 'Incidente cerrado correctamente.');
+      setSelectedIncident(null);
+      fetchInitialData();
+    } catch (error: any) {
+      console.error("DATA DEL ERROR:", error?.response?.data);
+
+      const errorData = error?.response?.data;
+      let errorMessage = 'Error al cerrar el incidente.';
+
+      if (errorData && typeof errorData === 'object' && !Array.isArray(errorData)) {
+        const messages = Object.values(errorData);
+        if (messages.length > 0) {
+          errorMessage = messages.join(' | ');
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } else if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      }
+
+      showToast('error', errorMessage);
     }
   };
 
@@ -120,7 +290,7 @@ export default function IncidentManagementPage() {
     <div style={{ display: 'flex', gap: '15px', padding: '15px', height: 'calc(100vh - 40px)', boxSizing: 'border-box', backgroundColor: '#f1f5f9', position: 'relative' }}>
       
       <IncidentSidebarLeft 
-        incidents={incidents}
+        incidents={filterType === 'templates' ? templates : incidents}
         selectedIncident={selectedIncident}
         isCreating={isCreating}
         loading={loading}
@@ -142,17 +312,18 @@ export default function IncidentManagementPage() {
           onDeleteService={handleDeleteService}
           onServiceChange={handleServiceChange}
           onSubmit={handleSubmit}
+          onCloseIncident={handleCloseIncident}
           onSaveAsTemplate={() => setIsTemplateModalOpen(true)}
           onCancelCreation={() => {
             setIsCreating(false);
-            setFormData({});
+            setFormData({ partnerCase: '', aliasedCase: '', comments: [], updates: [], advances: [] });
             setAffectedServices([]);
           }}
           onTemplateSelect={(type, name) => {
             const found = templates.find(t => t.name === name);
             if (found) {
               if (type === 'description') setFormData({ ...formData, description: found.messageTemplate });
-              if (type === 'solution') setFormData({ ...formData, solution: found.messageTemplate });
+              if (type === 'solution') setFormData({ ...formData, solution: found.messageTemplate, resolution: found.messageTemplate });
             }
           }}
         />
@@ -190,7 +361,10 @@ export default function IncidentManagementPage() {
         <TemplateModal 
           isOpen={isTemplateModalOpen} 
           onClose={() => setIsTemplateModalOpen(false)} 
-          onSave={() => setIsTemplateModalOpen(false)}
+          onSave={() => {
+            setIsTemplateModalOpen(false);
+            fetchInitialData();
+          }}
         />
       )}
 
