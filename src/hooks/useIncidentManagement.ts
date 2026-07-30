@@ -241,57 +241,126 @@ export function useIncidentManagement() {
   };
 
   // ==========================================
-  // FUNCIÓN PARA COPIAR PLANTILLA AL PORTAPAPELES
+  // FUNCIÓN COPIAR PLANTILLA CON FORMATO HTML
   // ==========================================
   const handleCopyTemplate = async () => {
-    try {
-      let servicesText = "Servicios Afectados:\n";
-      if (affectedServices && affectedServices.length > 0) {
-        affectedServices.forEach((srv) => {
-          const isOk = srv.status === 'OK' || srv.status === true;
-          const statusSymbol = isOk ? "✔" : "⚠️";
-          servicesText += `- ${statusSymbol} Servicio: ${srv.nameService || srv.name || 'N/A'} | Estado: ${srv.status || 'OK'} | Inicio: ${srv.startTime || ''} | Fin: ${srv.endTime || ''}\n`;
+    if (!formData) return;
+
+    const rawJiraInput = formData.jira || '';
+    const ticketCode = rawJiraInput.includes('/') ? rawJiraInput.split('/').pop() : rawJiraInput;
+    const fullJiraUrl = rawJiraInput.startsWith('http') 
+      ? rawJiraInput 
+      : `https://tu-empresa.atlassian.net/browse/${ticketCode}`;
+
+    // Construcción de texto plano limpio
+    let servicesPlainText = "Servicios Afectados:\n";
+    if (affectedServices && affectedServices.length > 0) {
+      affectedServices.forEach((srv: any) => {
+        const statusUpper = (srv.status || 'OK').toUpperCase();
+        let icon = '✔';
+        if (statusUpper === 'TOTAL') icon = '❌';
+        else if (statusUpper === 'PARCIAL') icon = '⚠️';
+
+        const name = srv.nameService || srv.name || 'Sin servicio';
+        const type = srv.status || 'OK';
+        const start = srv.startTime || 'N/A';
+        const end = srv.endTime || 'N/A';
+
+        servicesPlainText += `- ${icon} Servicio: ${name} | Tipo de Afectación: ${type} | Hora Inicio: ${start} | Hora Fin: ${end}\n`;
+      });
+    } else {
+      servicesPlainText += "- Ninguno\n";
+    }
+
+    const rawAdvances = formData.advances || formData.comments || formData.updates || [];
+    let advancesPlainText = "";
+    if (Array.isArray(rawAdvances) && rawAdvances.length > 0) {
+      const validAdvances = rawAdvances.filter((adv: any) => (adv.content || adv.message || adv.text || '').trim() !== '');
+      if (validAdvances.length > 0) {
+        validAdvances.forEach((adv: any, idx: number) => {
+          const text = adv.content || adv.message || adv.text || '';
+          advancesPlainText += `• Avance ${idx + 1}: ${text}\n`;
         });
-      } else {
-        servicesText += "Ninguno\n";
       }
+    }
 
-      const impactText = formData.impact ? `Impacto A Usuarios: ${formData.impact}\n` : '';
-      const functionalityText = formData.functionality ? `Funcionalidades OK: ${formData.functionality}\n` : '';
-      const jiraText = formData.jira ? `Jira: ${formData.jira}\n` : '';
-      const caseText = (formData.partnerCase || formData.aliasedCase) ? `Caso Aliado: ${formData.partnerCase || formData.aliasedCase}\n` : '';
-      const componentText = formData.affectedComponent ? `Componente Afectado: ${formData.affectedComponent}\n` : '';
-      const descriptionText = formData.description ? `Descripción de la falla: ${formData.description}\n` : '';
+    const plainTextParts = [
+      servicesPlainText,
+      formData.impact ? `Impacto A Usuarios: ${formData.impact}` : '',
+      formData.functionality ? `Funcionalidades OK: ${formData.functionality}` : '',
+      ticketCode ? `Jira: ${ticketCode} (${fullJiraUrl})` : '',
+      (formData.partnerCase || formData.aliasedCase)?.trim() ? `Caso Aliado: ${formData.partnerCase || formData.aliasedCase}` : '',
+      formData.affectedComponent ? `Componente Afectado: ${formData.affectedComponent}` : '',
+      formData.description ? `Descripción de la falla: ${formData.description}` : '',
+      advancesPlainText.trim() ? `\n${advancesPlainText.trim()}` : '',
+      (formData.solution || formData.resolution)?.trim() ? `Solución: ${formData.solution || formData.resolution}` : ''
+    ];
 
-      let advancesText = '';
-      const rawAdvances = formData.advances || formData.comments || formData.updates || [];
-      if (Array.isArray(rawAdvances) && rawAdvances.length > 0) {
-        const validAdvances = rawAdvances.filter((adv: any) => (adv.content || adv.message || '').trim() !== '');
-        if (validAdvances.length > 0) {
-          advancesText += '\n';
-          validAdvances.forEach((adv: any, idx: number) => {
-            const content = adv.content || adv.message || '';
-            advancesText += `• Avance ${idx + 1}: ${content}\n`;
-          });
-        }
-      }
+    const finalPlainText = plainTextParts.filter(Boolean).join('\n');
 
-      const solutionValue = formData.solution || formData.resolution || '';
-      const solutionText = solutionValue.trim() !== '' ? `\nSolución: ${solutionValue}\n` : '';
+    // HTML limpio SIN etiquetas <a> para evitar que se autogenere como hipervínculo o enlace azul
+    const servicesRows = (affectedServices || [])
+      .map((srv: any) => {
+        const statusUpper = (srv.status || 'OK').toUpperCase();
+        let icon = '✅';
+        if (statusUpper === 'TOTAL') icon = '❌';
+        else if (statusUpper === 'PARCIAL') icon = '⚠️';
 
-      const fullTemplateString = 
-        `${servicesText}\n` +
-        `${impactText}` +
-        `${functionalityText}` +
-        `${jiraText}` +
-        `${caseText}` +
-        `${componentText}` +
-        `${descriptionText}` +
-        `${advancesText}` +
-        `${solutionText}`;
+        return `
+          <tr>
+            <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${icon}</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px;">${srv.nameService || srv.name || 'Sin servicio'}</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px;">${srv.status || 'OK'}</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px;">${srv.startTime || 'N/A'}</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px;">${srv.endTime || 'N/A'}</td>
+          </tr>
+        `;
+      })
+      .join('');
 
-      await navigator.clipboard.writeText(fullTemplateString);
-      showToast('success', '¡Plantilla copiada al portapapeles!');
+    const commentsHtml = rawAdvances
+      .map((comment: any, idx: number) => {
+        const text = comment?.content || comment?.message || comment?.text || '';
+        return text ? `<li><b>Avance ${idx + 1}:</b> ${text}</li>` : '';
+      })
+      .filter(Boolean)
+      .join('');
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; font-size: 13px; color: #000000;">
+        <p style="font-weight: bold; margin: 0 0 5px 0;">Servicios Afectados:</p>
+        <table style="border-collapse: collapse; width: 100%; margin-bottom: 12px; font-size: 12px;">
+          <thead>
+            <tr style="background-color: #f3f4f6;">
+              <th style="border: 1px solid #d1d5db; padding: 6px;">ESTADO</th>
+              <th style="border: 1px solid #d1d5db; padding: 6px;">SERVICIO</th>
+              <th style="border: 1px solid #d1d5db; padding: 6px;">TIPO DE AFECTACIÓN</th>
+              <th style="border: 1px solid #d1d5db; padding: 6px;">HORA INICIO</th>
+              <th style="border: 1px solid #d1d5db; padding: 6px;">HORA FIN</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${servicesRows || '<tr><td colspan="5" style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">Ninguno</td></tr>'}
+          </tbody>
+        </table>
+        ${formData.impact ? `<p style="margin: 4px 0;"><b>Impacto A Usuarios:</b> ${formData.impact}</p>` : ''}
+        ${formData.functionality ? `<p style="margin: 4px 0;"><b>Funcionalidades OK:</b> ${formData.functionality}</p>` : ''}
+        ${ticketCode ? `<p style="margin: 4px 0;"><b>Jira:</b> ${ticketCode} (${fullJiraUrl})</p>` : ''}
+        ${(formData.partnerCase || formData.aliasedCase)?.trim() ? `<p style="margin: 4px 0;"><b>Caso Aliado:</b> ${formData.partnerCase || formData.aliasedCase}</p>` : ''}
+        ${formData.affectedComponent ? `<p style="margin: 4px 0;"><b>Componente Afectado:</b> ${formData.affectedComponent}</p>` : ''}
+        ${formData.description ? `<p style="margin: 4px 0;"><b>Descripción de la falla:</b> ${formData.description}</p>` : ''}
+        ${commentsHtml ? `<ul style="padding-left: 20px; margin: 8px 0;">${commentsHtml}</ul>` : ''}
+        ${(formData.solution || formData.resolution)?.trim() ? `<p style="margin: 4px 0;"><b>Solución:</b> ${formData.solution || formData.resolution}</p>` : ''}
+      </div>
+    `;
+
+    try {
+      const clipboardItem = new ClipboardItem({
+        'text/html': new Blob([htmlContent], { type: 'text/html' }),
+        'text/plain': new Blob([finalPlainText], { type: 'text/plain' })
+      });
+      await navigator.clipboard.write([clipboardItem]);
+      showToast('success', '¡Plantilla copiada correctamente!');
     } catch (err) {
       showToast('error', 'No se pudo copiar la plantilla.');
     }
