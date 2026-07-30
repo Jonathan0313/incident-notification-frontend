@@ -8,7 +8,7 @@ interface IncidentFormContentProps {
   availableServices: any[];
   isCreating: boolean;
   templates: any[];
-  filterType?: string; // <-- Añadido para saber si estamos en plantillas
+  filterType?: string;
   onAddService: () => void;
   onDeleteService: (index: number) => void;
   onServiceChange: (index: number, field: string, value: string) => void;
@@ -16,7 +16,7 @@ interface IncidentFormContentProps {
   onCloseIncident?: (currentComments?: any[]) => void;
   onSaveAsTemplate?: () => void;
   onCancelCreation?: () => void;
-  onTemplateSelect: (type: 'description' | 'solution' | 'comments', templateName: string, commentIndex?: number) => void;
+  onTemplateSelect?: (type: 'description' | 'solution' | 'comments', templateName: string, commentIndex?: number) => void;
   tableError?: boolean;
   setTableError?: (hasError: boolean) => void;
   showToast?: (type: 'success' | 'error', message: string) => void;
@@ -37,7 +37,6 @@ export function IncidentFormContent({
   onCloseIncident,
   onSaveAsTemplate,
   onCancelCreation,
-  onTemplateSelect,
   tableError,
   setTableError,
   showToast,
@@ -97,7 +96,7 @@ export function IncidentFormContent({
   };
 
   const isClosed = formData.status === 'Closed' || formData.status === 'CLOSED';
-  const isTemplateView = filterType === 'templates'; // Detecta si estamos visualizando plantillas
+  const isTemplateView = filterType === 'templates';
 
   return (
     <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', flex: 1, overflowY: 'auto' }}>
@@ -138,7 +137,7 @@ export function IncidentFormContent({
           <input 
             type="text" 
             required
-            readOnly={isTemplateView && !isCreating} // <-- El campo nombre no se permite modificar si es una plantilla existente
+            readOnly={isTemplateView && !isCreating}
             value={formData.name || ''} 
             onChange={(e) => {
               if (!(isTemplateView && !isCreating)) {
@@ -151,7 +150,7 @@ export function IncidentFormContent({
               borderRadius: '6px', 
               border: '1px solid #cbd5e1', 
               boxSizing: 'border-box',
-              backgroundColor: isTemplateView && !isCreating ? '#f1f5f9' : '#fff', // Apariencia visual de campo bloqueado
+              backgroundColor: isTemplateView && !isCreating ? '#f1f5f9' : '#fff',
               cursor: isTemplateView && !isCreating ? 'not-allowed' : 'text'
             }}
           />
@@ -210,13 +209,19 @@ export function IncidentFormContent({
           />
         </div>
 
+        {/* DESCRIPCIÓN */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Descripción de la falla: *</label>
             <select 
               onChange={(e) => { 
-                if (e.target.value) {
-                  onTemplateSelect('description', e.target.value); 
+                const templateName = e.target.value;
+                if (templateName) {
+                  const selectedObj = descriptionTemplates.find(t => t.name === templateName);
+                  // Priorizamos messageTemplate, seguido de description, content, etc.
+                  const textToFill = selectedObj?.messageTemplate || selectedObj?.description || selectedObj?.content || selectedObj?.text || templateName;
+                  
+                  setFormData({ ...formData, description: textToFill });
                   e.target.value = ''; 
                 }
               }}
@@ -237,6 +242,7 @@ export function IncidentFormContent({
           />
         </div>
 
+        {/* AVANCES */}
         <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <label style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>Avances:</label>
@@ -269,8 +275,20 @@ export function IncidentFormContent({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <select 
                         onChange={(e) => { 
-                          if (e.target.value) {
-                            onTemplateSelect('comments', e.target.value, index);
+                          const templateName = e.target.value;
+                          if (templateName) {
+                            const selectedObj = advanceTemplates.find(t => t.name === templateName);
+                            // Priorizamos messageTemplate aquí también
+                            const textToFill = selectedObj?.messageTemplate || selectedObj?.description || selectedObj?.content || selectedObj?.text || templateName;
+
+                            const updatedComments = [...(formData.comments || [])];
+                            updatedComments[index] = {
+                              ...updatedComments[index],
+                              sequence: index + 1,
+                              content: textToFill,
+                              message: textToFill
+                            };
+                            setFormData({ ...formData, comments: updatedComments });
                             e.target.value = '';
                           }
                         }}
@@ -317,13 +335,19 @@ export function IncidentFormContent({
           )}
         </div>
 
+        {/* SOLUCIÓN */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Solución: *</label>
             <select 
               onChange={(e) => { 
-                if (e.target.value) {
-                  onTemplateSelect('solution', e.target.value); 
+                const templateName = e.target.value;
+                if (templateName) {
+                  const selectedObj = solutionTemplates.find(t => t.name === templateName);
+                  // Priorizamos messageTemplate también en solución
+                  const textToFill = selectedObj?.messageTemplate || selectedObj?.description || selectedObj?.solution || selectedObj?.content || templateName;
+
+                  setFormData({ ...formData, solution: textToFill });
                   e.target.value = ''; 
                 }
               }}
@@ -373,7 +397,6 @@ export function IncidentFormContent({
             ) : (
               (!isClosed && onCloseIncident) && (
                 <button type="button" onClick={() => onCloseIncident(formData.comments)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                  {/* Cambia el texto del botón según si es plantilla o incidente */}
                   {isTemplateView ? 'Eliminar plantilla' : 'Cerrar Incidente'}
                 </button>
               )
