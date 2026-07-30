@@ -33,7 +33,7 @@ export default function IncidentManagementPage() {
     handleSetCurrentStartTimeFirst,
     handleSetCurrentEndTimeFirst,
     handleMatchEndTimeWithStartTime,
-    handleCopyTemplate, // <-- 1. Extraído del hook para copiar al portapapeles
+    handleCopyTemplate,
     handleSubmit,
     handleCloseIncident,
     handleTemplateSelect,
@@ -81,7 +81,7 @@ export default function IncidentManagementPage() {
 
       <IncidentSidebarRight 
         hasFormData={!isCreating && !!selectedIncident}
-        onCopyTemplate={handleCopyTemplate} // <-- 2. Conectado para copiar el formato correcto al portapapeles
+        onCopyTemplate={handleCopyTemplate}
         onApplyFirstStartTime={handleApplyFirstStartTime}
         onApplyFirstEndTime={handleApplyFirstEndTime}
         onApplyFirstAffectationType={handleApplyFirstAffectationType}

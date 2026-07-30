@@ -210,17 +210,38 @@ export function useIncidentManagement() {
       } else {
         const responseData = await incidentService.update(selectedIncident?.id, payload);
 
-        const updatedIncident = {
-          ...(responseData || {}),
-          ...payload,
-          id: selectedIncident?.id,
-          name: formData.name,
-          title: formData.name
-        };
-        
         showToast('success', 'Incidente actualizado correctamente.');
-        setIncidents(prev => [updatedIncident, ...prev.filter(inc => inc.id !== selectedIncident?.id && inc.id !== updatedIncident.id)]);
-        setSelectedIncident(updatedIncident);
+
+        if (filterType === 'closed_recent') {
+          setSelectedIncident(null);
+          setIsCreating(false);
+          setFormData(initialFormState);
+          setAffectedServices([]);
+          await fetchInitialData();
+        } else {
+          const updatedIncident = {
+            ...(responseData || {}),
+            ...payload,
+            id: selectedIncident?.id,
+            name: formData.name,
+            title: formData.name
+          };
+
+          // Actualizamos la lista localmente primero para asegurarnos de que quede de primero de inmediato
+          setIncidents(prev => [
+            updatedIncident,
+            ...prev.filter(inc => inc.id !== selectedIncident?.id)
+          ]);
+          setSelectedIncident(updatedIncident);
+          
+          // Sincronizamos con el servidor en segundo plano
+          await fetchInitialData();
+          // Aseguramos que se mantenga de primero tras la recarga del servidor
+          setIncidents(prev => [
+            updatedIncident,
+            ...prev.filter(inc => inc.id !== selectedIncident?.id)
+          ]);
+        }
       }
     } catch (error: any) {
       const errorData = error?.response?.data;
@@ -267,14 +288,20 @@ export function useIncidentManagement() {
       const payload = buildUnifiedPayload({ 
         solution: solutionText, 
         resolution: solutionText,
-        comments: formattedComments
+        comments: formattedComments,
+        status: 'Closed'
       });
 
       await incidentService.close(selectedIncident.id, payload);
       
       showToast('success', 'Incidente cerrado correctamente.');
+      
       setSelectedIncident(null);
-      fetchInitialData();
+      setIsCreating(false);
+      setFormData(initialFormState);
+      setAffectedServices([]);
+      setFilterType('open');
+      await fetchInitialData();
     } catch (error: any) {
       const errorData = error?.response?.data;
       let errorMessage = 'Error al cerrar el incidente.';
