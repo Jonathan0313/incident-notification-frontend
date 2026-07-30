@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { incidentService } from '../services/incidentService';
+import { notificationTemplateService } from '../services/notificationTemplateService'; // <-- 1. Importar el nuevo servicio
 import { useAffectedServices } from './useAffectedServices';
 import { useIncidentTemplate } from './useIncidentTemplate';
 
@@ -61,7 +62,15 @@ export function useIncidentManagement() {
       const rawServices = await incidentService.getAllServices();
       setAvailableServices(Array.isArray(rawServices) ? rawServices : (rawServices?.content || rawServices?.data || []));
 
-      const rawTpl = incidentService.getTemplates ? await incidentService.getTemplates() : [];
+      // --- 2. CAMBIO AQUÍ: Usamos notificationTemplateService en lugar de incidentService.getTemplates ---
+      let rawTpl = [];
+      try {
+        rawTpl = await notificationTemplateService.getAll();
+      } catch (err) {
+        console.error('Error al cargar notification-templates:', err);
+        rawTpl = [];
+      }
+
       const tplArray = Array.isArray(rawTpl) ? rawTpl : (rawTpl?.content || rawTpl?.data || []);
 
       const sortedTemplates = tplArray.sort((a: any, b: any) => {
@@ -227,16 +236,13 @@ export function useIncidentManagement() {
             title: formData.name
           };
 
-          // Actualizamos la lista localmente primero para asegurarnos de que quede de primero de inmediato
           setIncidents(prev => [
             updatedIncident,
             ...prev.filter(inc => inc.id !== selectedIncident?.id)
           ]);
           setSelectedIncident(updatedIncident);
           
-          // Sincronizamos con el servidor en segundo plano
           await fetchInitialData();
-          // Aseguramos que se mantenga de primero tras la recarga del servidor
           setIncidents(prev => [
             updatedIncident,
             ...prev.filter(inc => inc.id !== selectedIncident?.id)
