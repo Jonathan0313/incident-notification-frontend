@@ -12,10 +12,10 @@ interface IncidentFormContentProps {
   onDeleteService: (index: number) => void;
   onServiceChange: (index: number, field: string, value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
-  onCloseIncident?: () => void;
+  onCloseIncident?: (currentComments?: any[]) => void;
   onSaveAsTemplate?: () => void;
   onCancelCreation?: () => void;
-  onTemplateSelect: (type: 'description' | 'solution' | 'advances', templateName: string, advanceIndex?: number) => void;
+  onTemplateSelect: (type: 'description' | 'solution' | 'comments', templateName: string, commentIndex?: number) => void;
   tableError?: boolean;
   setTableError?: (hasError: boolean) => void;
   showToast?: (type: 'success' | 'error', message: string) => void;
@@ -43,7 +43,6 @@ export function IncidentFormContent({
   
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  // 🔄 Filtro exacto usando typeTemplate (con respaldo a type o Tipo por compatibilidad)
   const descriptionTemplates = templates.filter((t: any) => {
     const val = (t.typeTemplate || t.type || t.Tipo || '').trim().toLowerCase();
     return val === 'descripción' || val === 'descripcion' || val === 'description';
@@ -51,7 +50,7 @@ export function IncidentFormContent({
 
   const advanceTemplates = templates.filter((t: any) => {
     const val = (t.typeTemplate || t.type || t.Tipo || '').trim().toLowerCase();
-    return val === 'avance' || val === 'avances' || val === 'advance';
+    return val === 'avance' || val === 'avances' || val === 'advance' || val === 'comments';
   });
 
   const solutionTemplates = templates.filter((t: any) => {
@@ -221,17 +220,17 @@ export function IncidentFormContent({
           />
         </div>
 
-        {/* Sección de Avances */}
+        {/* Sección de Comentarios / Avances */}
         <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <label style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>Avances:</label>
             <button 
               type="button" 
               onClick={() => {
-                const currentAdv = formData.advances || [];
+                const currentComments = formData.comments || [];
                 setFormData({ 
                   ...formData, 
-                  advances: [...currentAdv, { sequence: currentAdv.length + 1, content: '' }] 
+                  comments: [...currentComments, { sequence: currentComments.length + 1, content: '' }] 
                 });
               }} 
               style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}
@@ -240,11 +239,11 @@ export function IncidentFormContent({
             </button>
           </div>
 
-          {(!formData.advances || formData.advances.length === 0) ? (
+          {(!formData.comments || formData.comments.length === 0) ? (
             <p style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic', margin: 0 }}>No hay avances registrados.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {formData.advances.map((adv: any, index: number) => (
+              {formData.comments.map((comm: any, index: number) => (
                 <div key={index} style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -255,7 +254,7 @@ export function IncidentFormContent({
                       <select 
                         onChange={(e) => { 
                           if (e.target.value) {
-                            onTemplateSelect('advances', e.target.value, index);
+                            onTemplateSelect('comments', e.target.value, index);
                             e.target.value = '';
                           }
                         }}
@@ -269,10 +268,10 @@ export function IncidentFormContent({
                       <button 
                         type="button" 
                         onClick={() => {
-                          const updated = formData.advances
+                          const updated = formData.comments
                             .filter((_: any, i: number) => i !== index)
                             .map((item: any, i: number) => ({ ...item, sequence: i + 1 }));
-                          setFormData({ ...formData, advances: updated });
+                          setFormData({ ...formData, comments: updated });
                         }} 
                         style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
                       >
@@ -283,12 +282,16 @@ export function IncidentFormContent({
 
                   <textarea 
                     rows={3}
-                    value={adv.content || ''}
+                    value={comm.content || comm.message || comm.text || ''}
                     onChange={(e) => {
-                      const updated = [...formData.advances];
-                      updated[index].sequence = index + 1;
-                      updated[index].content = e.target.value;
-                      setFormData({ ...formData, advances: updated });
+                      const updated = [...formData.comments];
+                      updated[index] = {
+                        ...updated[index],
+                        sequence: index + 1,
+                        content: e.target.value,
+                        message: e.target.value
+                      };
+                      setFormData({ ...formData, comments: updated });
                     }}
                     style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', resize: 'vertical' }}
                   />
@@ -346,7 +349,7 @@ export function IncidentFormContent({
               )
             ) : (
               onCloseIncident && (
-                <button type="button" onClick={onCloseIncident} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                <button type="button" onClick={() => onCloseIncident(formData.comments)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
                   Cerrar Incidente
                 </button>
               )

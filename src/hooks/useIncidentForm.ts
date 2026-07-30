@@ -302,23 +302,32 @@ export function useIncidentForm(selectedIncident: Incident | null, onIncidentSav
     }
   };
 
-  const handleCloseIncident = async () => {
+  const handleCloseIncident = async (currentAdvancesFromUI?: any[]) => {
     if (!formData) return;
+    
+    // Unimos los comentarios de la UI si los pasan directamente, o respaldamos con los del formData
+    const activeComments = currentAdvancesFromUI || formData.comments || (formData as any).advances || (formData as any).updates || [];
+
+    const formWithComments = {
+      ...formData,
+      comments: activeComments
+    };
+
     if (!validateForm()) {
       throw new Error("Por favor corrige los errores del formulario.");
     }
 
-    if (!formData.resolution || !formData.resolution.trim()) {
+    if (!formWithComments.resolution || !formWithComments.resolution.trim()) {
       setErrors((prev) => ({ ...prev, resolution: 'El campo Solución es obligatorio para cerrar la notificación.' }));
       throw new Error("Debe registrar la solución antes de cerrar el incidente.");
     }
 
-    const updatedServices = ((formData as any).affectedServices || []).map((srv: any) => ({
+    const updatedServices = ((formWithComments as any).affectedServices || []).map((srv: any) => ({
       ...srv,
       status: 'OK'
     }));
 
-    const dataToClose = buildPayload({ ...formData, affectedServices: updatedServices });
+    const dataToClose = buildPayload({ ...formWithComments, affectedServices: updatedServices });
 
     try {
       await incidentService.closeIncident(formData.id, dataToClose);

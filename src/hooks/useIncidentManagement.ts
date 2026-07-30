@@ -1,5 +1,21 @@
 import { useState, useEffect } from 'react';
-import { axiosClient } from '../services/axiosClient';
+import { incidentService } from '../services/incidentService';
+import { useAffectedServices } from './useAffectedServices';
+import { useIncidentTemplate } from './useIncidentTemplate';
+
+const initialFormState = {
+  name: '',
+  impact: '',
+  functionality: '',
+  affectedComponent: '',
+  jira: '',
+  partnerCase: '',
+  aliasedCase: '',
+  description: '',
+  solution: '',
+  resolution: '',
+  comments: []
+};
 
 export function useIncidentManagement() {
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -11,23 +27,7 @@ export function useIncidentManagement() {
   const [filterType, setFilterType] = useState<'open' | 'closed_recent' | 'templates'>('open');
   const [loading, setLoading] = useState<boolean>(false);
   
-  const [formData, setFormData] = useState<any>({
-    name: '',
-    impact: '',
-    functionality: '',
-    affectedComponent: '',
-    jira: '',
-    partnerCase: '',
-    aliasedCase: '',
-    description: '',
-    solution: '',
-    resolution: '',
-    comments: [],
-    updates: [],
-    advances: []
-  });
-  const [affectedServices, setAffectedServices] = useState<any[]>([]);
-  
+  const [formData, setFormData] = useState<any>(initialFormState);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState<boolean>(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -35,6 +35,11 @@ export function useIncidentManagement() {
     setToast({ type, message });
     setTimeout(() => setToast(null), 4500);
   };
+
+  const affectedServicesManager = useAffectedServices([]);
+  const { affectedServices, setAffectedServices } = affectedServicesManager;
+
+  const { handleCopyTemplate } = useIncidentTemplate(formData, affectedServices, showToast);
 
   useEffect(() => {
     fetchInitialData();
@@ -53,12 +58,10 @@ export function useIncidentManagement() {
     try {
       setLoading(true);
 
-      const srvRes = await axiosClient.get('/v1/api/services/all').catch(() => ({ data: [] }));
-      const rawServices = srvRes.data;
+      const rawServices = await incidentService.getAllServices();
       setAvailableServices(Array.isArray(rawServices) ? rawServices : (rawServices?.content || rawServices?.data || []));
 
-      const tplRes = await axiosClient.get('/v1/api/templates').catch(() => ({ data: [] }));
-      const rawTpl = tplRes.data;
+      const rawTpl = incidentService.getTemplates ? await incidentService.getTemplates() : [];
       const tplArray = Array.isArray(rawTpl) ? rawTpl : (rawTpl?.content || rawTpl?.data || []);
 
       const sortedTemplates = tplArray.sort((a: any, b: any) => {
@@ -70,17 +73,14 @@ export function useIncidentManagement() {
       setTemplates(sortedTemplates);
 
       if (filterType === 'open') {
-        const openRes = await axiosClient.get('/v1/api/notifications/open').catch(() => ({ data: [] }));
-        const rawOpen = openRes.data;
+        const rawOpen = await incidentService.getOpen();
         setIncidents(Array.isArray(rawOpen) ? rawOpen : (rawOpen?.content || rawOpen?.data || []));
       } else if (filterType === 'closed_recent') {
-        const closedRes = await axiosClient.get('/v1/api/notifications/closed/recent').catch(() => ({ data: [] }));
-        const rawClosed = closedRes.data;
+        const rawClosed = await incidentService.getClosedRecent();
         setIncidents(Array.isArray(rawClosed) ? rawClosed : (rawClosed?.content || rawClosed?.data || []));
       } else if (filterType === 'templates') {
         setIncidents(sortedTemplates);
       }
-
     } catch (error) {
       showToast('error', 'Error al cargar los datos iniciales.');
     } finally {
@@ -91,11 +91,7 @@ export function useIncidentManagement() {
   const handleStartCreate = () => {
     setIsCreating(true);
     setSelectedIncident(null);
-    setFormData({ 
-      name: '', impact: '', functionality: '', affectedComponent: '', jira: '', 
-      partnerCase: '', aliasedCase: '', description: '', solution: '', resolution: '', 
-      comments: [], updates: [], advances: [] 
-    });
+    setFormData(initialFormState);
     setAffectedServices([]);
   };
 
@@ -103,7 +99,7 @@ export function useIncidentManagement() {
     setIsCreating(false);
     setSelectedIncident(inc);
     
-    const initialAdvances = inc.advances || inc.comments || inc.updates || [];
+    const initialComments = Array.isArray(inc.comments) ? inc.comments : [];
     const caseValue = inc.partnerCase || inc.aliasedCase || '';
     const solValue = inc.solution || inc.resolution || '';
 
@@ -119,9 +115,7 @@ export function useIncidentManagement() {
       resolution: solValue,
       partnerCase: caseValue,
       aliasedCase: caseValue,
-      comments: initialAdvances,
-      updates: initialAdvances,
-      advances: initialAdvances
+      comments: initialComments
     });
     setAffectedServices(inc.affectedServices || inc.services || []);
 
@@ -129,11 +123,11 @@ export function useIncidentManagement() {
 
     try {
       setLoading(true);
-      const res = await axiosClient.get(`/v1/api/notifications/${inc.id}`);
-      const fullData = res.data;
+      const fullData = await incidentService.getById(inc.id);
       
       const resolvedSol = fullData.solution || fullData.resolution || '';
-      const resolvedAdvances = fullData.advances || fullData.comments || fullData.updates || inc.advances || inc.comments || [];
+      const rawFullComments = fullData.comments || inc.comments || [];
+      const resolvedComments = Array.isArray(rawFullComments) ? rawFullComments : [];
       const resolvedCase = fullData.partnerCase || fullData.aliasedCase || inc.partnerCase || inc.aliasedCase || '';
 
       setFormData({
@@ -149,258 +143,31 @@ export function useIncidentManagement() {
         resolution: resolvedSol,
         partnerCase: resolvedCase,
         aliasedCase: resolvedCase,
-        comments: resolvedAdvances,
-        updates: resolvedAdvances,
-        advances: resolvedAdvances
+        comments: resolvedComments
       });
       setAffectedServices(fullData.affectedServices || inc.affectedServices || []);
     } catch (error) {
-      console.error("Error al cargar detalle:", error);
       showToast('error', 'No se pudieron actualizar todos los detalles.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddService = () => {
-    setAffectedServices([...affectedServices, { nameService: '', status: 'OK', startTime: '', endTime: '' }]);
-  };
-
-  const handleDeleteService = (index: number) => {
-    setAffectedServices(affectedServices.filter((_, idx) => idx !== index));
-  };
-
-  const handleServiceChange = (index: number, field: string, value: string) => {
-    const updated = [...affectedServices];
-    updated[index][field] = value;
-    setAffectedServices(updated);
-  };
-
-  const handleApplyFirstStartTime = () => {
-    if (affectedServices.length === 0) return;
-    const firstTime = affectedServices[0].startTime;
-    setAffectedServices(affectedServices.map(s => ({ ...s, startTime: firstTime })));
-  };
-
-  const handleApplyFirstEndTime = () => {
-    if (affectedServices.length === 0) return;
-    const firstTime = affectedServices[0].endTime;
-    setAffectedServices(affectedServices.map(s => ({ ...s, endTime: firstTime })));
-  };
-
-  const handleApplyFirstAffectationType = () => {
-    if (affectedServices.length === 0) return;
-    const firstType = affectedServices[0].status;
-    setAffectedServices(affectedServices.map(s => ({ ...s, status: firstType })));
-  };
-
-  const handleSetCurrentStartTimeFirst = () => {
-    if (affectedServices.length === 0) return;
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const nowStr = `${day}/${month}/${year} ${hours}:${minutes}`;
-
-    const updated = [...affectedServices];
-    updated[0] = { ...updated[0], startTime: nowStr };
-    setAffectedServices(updated);
-  };
-
-  const handleSetCurrentEndTimeFirst = () => {
-    if (affectedServices.length === 0) return;
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const nowStr = `${day}/${month}/${year} ${hours}:${minutes}`;
-
-    const updated = [...affectedServices];
-    updated[0] = { ...updated[0], endTime: nowStr };
-    setAffectedServices(updated);
-  };
-
-  const handleMatchEndTimeWithStartTime = () => {
-    setAffectedServices(prevServices => {
-      if (!prevServices || prevServices.length === 0) return prevServices;
-      
-      const updated = [...prevServices];
-      const firstService = updated[0];
-
-      updated[0] = {
-        ...firstService,
-        endTime: firstService.startTime || firstService.endTime || ''
-      };
-      
-      return updated;
-    });
-  };
-
-  // ==========================================
-  // FUNCIÓN COPIAR PLANTILLA CON FORMATO HTML
-  // ==========================================
- const handleCopyTemplate = async () => {
-    if (!formData) return;
-
-    const rawJiraInput = formData.jira || '';
+  const buildUnifiedPayload = (customFields: any = {}) => {
+    const targetRaw = customFields.comments || formData.comments;
+    const rawComments = Array.isArray(targetRaw) ? targetRaw : [];
     
-    let ticketCode = '';
-    let fullJiraUrl = '';
-
-    if (typeof rawJiraInput === 'string' && rawJiraInput.trim() !== '') {
-      const trimmedJira = rawJiraInput.trim();
-      
-      if (trimmedJira.startsWith('http')) {
-        fullJiraUrl = trimmedJira;
-        const parts = trimmedJira.split('/');
-        ticketCode = parts[parts.length - 1] || trimmedJira;
-      } else {
-        ticketCode = trimmedJira;
-        fullJiraUrl = `https://nequi.atlassian.net/browse/${ticketCode}`;
-      }
-    }
-
-    let servicesPlainText = "Servicios Afectados:\n";
-    if (Array.isArray(affectedServices) && affectedServices.length > 0) {
-      affectedServices.forEach((srv: any) => {
-        if (!srv) return;
-        const statusUpper = (srv.status || 'OK').toUpperCase();
-        let icon = '✔';
-        if (statusUpper === 'TOTAL') icon = '❌';
-        else if (statusUpper === 'PARCIAL') icon = '⚠️';
-
-        const name = srv.nameService || srv.name || 'Sin servicio';
-        const type = srv.status || 'OK';
-        const start = srv.startTime || '';
-        const end = srv.endTime || '';
-
-        const timeInfo = (start || end) ? ` | Hora Inicio: ${start} | Hora Fin: ${end}` : '';
-        servicesPlainText += `- ${icon} Servicio: ${name} | Tipo de Afectación: ${type}${timeInfo}\n`;
-      });
-    } else {
-      servicesPlainText += "- Ninguno\n";
-    }
-
-    const rawAdvances = formData.advances || formData.comments || formData.updates || [];
-    let advancesPlainText = "";
-    if (Array.isArray(rawAdvances) && rawAdvances.length > 0) {
-      const validAdvances = rawAdvances.filter((adv: any) => adv && (adv.content || adv.message || adv.text || '').trim() !== '');
-      if (validAdvances.length > 0) {
-        validAdvances.forEach((adv: any, idx: number) => {
-          const text = adv.content || adv.message || adv.text || '';
-          advancesPlainText += `• Avance ${idx + 1}: ${text}\n`;
-        });
-      }
-    }
-
-    const plainTextParts = [
-      servicesPlainText,
-      formData.impact ? `Impacto A Usuarios: ${formData.impact}` : '',
-      formData.functionality ? `Funcionalidades OK: ${formData.functionality}` : '',
-      ticketCode ? `Jira: ${ticketCode} (${fullJiraUrl})` : '',
-      (formData.partnerCase || formData.aliasedCase)?.trim() ? `Caso Aliado: ${formData.partnerCase || formData.aliasedCase}` : '',
-      formData.affectedComponent ? `Componente Afectado: ${formData.affectedComponent}` : '',
-      formData.description ? `Descripción de la falla: ${formData.description}` : '',
-      advancesPlainText.trim() ? `\n${advancesPlainText.trim()}` : '',
-      (formData.solution || formData.resolution)?.trim() ? `Solución: ${formData.solution || formData.resolution}` : ''
-    ];
-
-    const finalPlainText = plainTextParts.filter(Boolean).join('\n');
-
-    const servicesRows = (Array.isArray(affectedServices) ? affectedServices : [])
-      .map((srv: any) => {
-        if (!srv) return '';
-        const statusUpper = (srv.status || 'OK').toUpperCase();
-        let icon = '✅';
-        if (statusUpper === 'TOTAL') icon = '❌';
-        else if (statusUpper === 'PARCIAL') icon = '⚠️';
-
-        return `
-          <tr>
-            <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center; color: #000000; text-decoration: none;">${icon}</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px; color: #000000; text-decoration: none;">${srv.nameService || srv.name || 'Sin servicio'}</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px; color: #000000; text-decoration: none;">${srv.status || 'OK'}</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px; color: #000000; text-decoration: none;">${srv.startTime || ''}</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px; color: #000000; text-decoration: none;">${srv.endTime || ''}</td>
-          </tr>
-        `;
-      })
-      .filter(Boolean)
-      .join('');
-
-    const commentsHtml = Array.isArray(rawAdvances) 
-      ? rawAdvances
-          .map((comment: any, idx: number) => {
-            const text = comment?.content || comment?.message || comment?.text || '';
-            return text ? `<li style="color: #000000; text-decoration: none;"><b style="color: #000000;">Avance ${idx + 1}:</b> ${text}</li>` : '';
-          })
-          .filter(Boolean)
-          .join('')
-      : '';
-
-    // Estructura HTML usando un elemento span en línea puro para el texto y el enlace, evitando que el navegador expanda el formato a los bloques superiores
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; font-size: 13px; color: #000000;">
-        <div style="margin-bottom: 8px;">
-          <p style="font-weight: bold; margin: 0 0 5px 0; color: #000000;">Servicios Afectados:</p>
-          <table style="border-collapse: collapse; width: 100%; font-size: 12px; color: #000000;">
-            <thead>
-              <tr style="background-color: #f3f4f6;">
-                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">ESTADO</th>
-                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">SERVICIO</th>
-                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">TIPO DE AFECTACIÓN</th>
-                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">HORA INICIO</th>
-                <th style="border: 1px solid #d1d5db; padding: 6px; color: #000000;">HORA FIN</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${servicesRows || '<tr><td colspan="5" style="border: 1px solid #d1d5db; padding: 6px; text-align: center; color: #000000;">Ninguno</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Impacto A Usuarios:</b> ${formData.impact || ''}</div>
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Funcionalidades OK:</b> ${formData.functionality || ''}</div>
-        
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Jira:</b> ${ticketCode ? `<a href="${fullJiraUrl}" target="_blank" style="color: #0052CC; text-decoration: underline;">${ticketCode}</a>` : ''}</div>
-
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Caso Aliado:</b> ${formData.partnerCase || formData.aliasedCase || ''}</div>
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Componente Afectado:</b> ${formData.affectedComponent || ''}</div>
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Descripción de la falla:</b> ${formData.description || ''}</div>
-        
-        ${commentsHtml ? `<ul style="padding-left: 20px; margin: 8px 0; color: #000000;">${commentsHtml}</ul>` : ''}
-        
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Solución:</b> ${formData.solution || formData.resolution || ''}</div>
-      </div>
-    `;
-
-    try {
-      const clipboardItem = new ClipboardItem({
-        'text/html': new Blob([htmlContent], { type: 'text/html' }),
-        'text/plain': new Blob([finalPlainText], { type: 'text/plain' })
-      });
-      await navigator.clipboard.write([clipboardItem]);
-      showToast('success', '¡Plantilla copiada correctamente!');
-    } catch (err) {
-      showToast('error', 'No se pudo copiar la plantilla.');
-    }
-  };
-
-  const buildUnifiedPayload = (customFields = {}) => {
-    const rawAdvances = formData.advances || formData.comments || formData.updates || [];
-    const formattedAdvances = rawAdvances.map((adv: any, idx: number) => ({
-      sequence: adv.sequence || idx + 1,
-      content: adv.content || adv.message || ''
-    }));
+    const formattedComments = rawComments
+      .map((comm: any, idx: number) => ({
+        sequence: comm?.sequence || idx + 1,
+        content: comm?.content || comm?.message || comm?.text || ''
+      }))
+      .filter((comm: any) => comm.content.trim() !== '');
 
     const caseValue = formData.partnerCase || formData.aliasedCase || '';
-    const solValue = formData.solution || formData.resolution || '';
+    const solValue = customFields.solution || formData.solution || formData.resolution || '';
 
-    return {
+    const payload = {
       name: formData.name || '',
       title: formData.name || '',
       impact: formData.impact || '',
@@ -413,11 +180,11 @@ export function useIncidentManagement() {
       solution: solValue,
       resolution: solValue,
       affectedServices: affectedServices || [],
-      comments: formattedAdvances,
-      updates: formattedAdvances,
-      advances: formattedAdvances,
+      comments: formattedComments,
       ...customFields
     };
+
+    return payload;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -426,11 +193,12 @@ export function useIncidentManagement() {
       const payload = buildUnifiedPayload();
       
       if (isCreating) {
-        const response = await axiosClient.post('/v1/api/notifications', payload);
+        const responseData = await incidentService.create(payload);
+
         const createdIncident = {
-          ...(response.data || {}),
+          ...(responseData || {}),
           ...payload,
-          id: response.data?.id || Date.now(),
+          id: responseData?.id || Date.now(),
           name: formData.name,
           title: formData.name
         };
@@ -440,9 +208,10 @@ export function useIncidentManagement() {
         setIncidents(prev => [createdIncident, ...prev.filter(inc => inc.id !== createdIncident.id)]);
         setSelectedIncident(createdIncident);
       } else {
-        const response = await axiosClient.put(`/v1/api/notifications/${selectedIncident?.id}`, payload);
+        const responseData = await incidentService.update(selectedIncident?.id, payload);
+
         const updatedIncident = {
-          ...(response.data || {}),
+          ...(responseData || {}),
           ...payload,
           id: selectedIncident?.id,
           name: formData.name,
@@ -466,7 +235,7 @@ export function useIncidentManagement() {
     }
   };
 
-  const handleCloseIncident = async () => {
+  const handleCloseIncident = async (currentCommentsFromUI?: any[]) => {
     if (!selectedIncident?.id) return;
     const solutionText = formData.solution || formData.resolution;
 
@@ -483,18 +252,43 @@ export function useIncidentManagement() {
     }
 
     try {
-      const payload = buildUnifiedPayload({ solution: solutionText, resolution: solutionText });
-      await axiosClient.put(`/v1/api/notifications/${selectedIncident.id}/close`, payload);
+      const rawSource = 
+        (Array.isArray(currentCommentsFromUI) && currentCommentsFromUI.length > 0 ? currentCommentsFromUI : null) ||
+        (Array.isArray(formData.comments) && formData.comments.length > 0 ? formData.comments : null) ||
+        [];
+
+      const formattedComments = rawSource
+        .map((comm: any, idx: number) => ({
+          sequence: comm?.sequence || idx + 1,
+          content: comm?.content || comm?.message || comm?.text || ''
+        }))
+        .filter((comm: any) => comm.content.trim() !== '');
+
+      const payload = buildUnifiedPayload({ 
+        solution: solutionText, 
+        resolution: solutionText,
+        comments: formattedComments
+      });
+
+      await incidentService.close(selectedIncident.id, payload);
       
       showToast('success', 'Incidente cerrado correctamente.');
       setSelectedIncident(null);
       fetchInitialData();
     } catch (error: any) {
-      showToast('error', 'Error al cerrar el incidente.');
+      const errorData = error?.response?.data;
+      let errorMessage = 'Error al cerrar el incidente.';
+      if (errorData && typeof errorData === 'object' && !Array.isArray(errorData)) {
+        const messages = Object.values(errorData);
+        errorMessage = messages.length > 0 ? messages.join(' | ') : (errorData.message || errorMessage);
+      } else if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      }
+      showToast('error', errorMessage);
     }
   };
 
-  const handleTemplateSelect = (type: string, templateName: string, advanceIndex?: number) => {
+  const handleTemplateSelect = (type: string, templateName: string, commentIndex?: number) => {
     const found = templates.find(t => t.name === templateName);
     if (!found) return;
 
@@ -507,17 +301,18 @@ export function useIncidentManagement() {
       if (type === 'solution') {
         return { ...prev, solution: messageContent, resolution: messageContent };
       }
-      if (type === 'advances') {
-        const currentAdvances = [...(prev.advances || prev.comments || prev.updates || [])];
-        if (advanceIndex !== undefined && currentAdvances[advanceIndex]) {
-          currentAdvances[advanceIndex] = {
-            ...currentAdvances[advanceIndex],
-            sequence: advanceIndex + 1,
+      if (type === 'comments') {
+        const currentComments = Array.isArray(prev.comments) ? [...prev.comments] : [];
+          
+        if (commentIndex !== undefined) {
+          currentComments[commentIndex] = {
+            ...(currentComments[commentIndex] || {}),
+            sequence: commentIndex + 1,
             content: messageContent,
             message: messageContent
           };
         }
-        return { ...prev, comments: currentAdvances, updates: currentAdvances, advances: currentAdvances };
+        return { ...prev, comments: currentComments };
       }
       return prev;
     });
@@ -534,26 +329,17 @@ export function useIncidentManagement() {
     loading, 
     formData, 
     setFormData, 
-    affectedServices,
     isTemplateModalOpen, 
     setIsTemplateModalOpen, 
     toast,
     setFilterType, 
     handleStartCreate, 
     handleSelectIncident,
-    handleAddService, 
-    handleDeleteService, 
-    handleServiceChange,
-    handleApplyFirstStartTime, 
-    handleApplyFirstEndTime, 
-    handleApplyFirstAffectationType,
-    handleSetCurrentStartTimeFirst,
-    handleSetCurrentEndTimeFirst,
-    handleMatchEndTimeWithStartTime,
     handleCopyTemplate,
     handleSubmit, 
     handleCloseIncident, 
     handleTemplateSelect, 
-    fetchInitialData
+    fetchInitialData,
+    ...affectedServicesManager
   };
 }
