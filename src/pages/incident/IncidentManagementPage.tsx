@@ -117,7 +117,7 @@ export default function IncidentManagementPage() {
 
     setFormData({
       ...inc,
-      name: inc.name || '',
+      name: inc.name || inc.title || '',
       impact: inc.impact || '',
       functionality: inc.functionality || '',
       affectedComponent: inc.affectedComponent || '',
@@ -147,7 +147,7 @@ export default function IncidentManagementPage() {
       setFormData({
         ...inc,
         ...fullData,
-        name: fullData.name || inc.name || '',
+        name: fullData.name || fullData.title || inc.name || '',
         impact: fullData.impact || inc.impact || '',
         functionality: fullData.functionality || inc.functionality || '',
         affectedComponent: fullData.affectedComponent || inc.affectedComponent || '',
@@ -206,11 +206,10 @@ export default function IncidentManagementPage() {
     setAffectedServices(updated);
   };
 
-  // 🛠️ FUNCIÓN ÚNICA PARA ARMAR EL PAYLOAD (Garantiza que ningún campo falte y se envíen vacíos si corresponde)
+  // 🛠️ Función unificada para construir el payload asegurando name y title
   const buildUnifiedPayload = (customFields = {}) => {
     const rawAdvances = formData.advances || formData.comments || formData.updates || [];
     
-    // Aseguramos que cada avance tenga su estructura correcta de sequence y content
     const formattedAdvances = rawAdvances.map((adv: any, idx: number) => ({
       sequence: adv.sequence || idx + 1,
       content: adv.content || adv.message || ''
@@ -221,6 +220,7 @@ export default function IncidentManagementPage() {
 
     return {
       name: formData.name || '',
+      title: formData.name || '',
       impact: formData.impact || '',
       functionality: formData.functionality || '',
       affectedComponent: formData.affectedComponent || '',
@@ -234,7 +234,7 @@ export default function IncidentManagementPage() {
       comments: formattedAdvances,
       updates: formattedAdvances,
       advances: formattedAdvances,
-      ...customFields // Permite sobreescribir o inyectar propiedades específicas si se requiere
+      ...customFields
     };
   };
 
@@ -244,15 +244,39 @@ export default function IncidentManagementPage() {
       const payload = buildUnifiedPayload();
       
       if (isCreating) {
-        await axiosClient.post('/v1/api/notifications', payload);
+        const response = await axiosClient.post('/v1/api/notifications', payload);
+        const createdIncident = {
+          ...(response.data || {}),
+          ...payload,
+          id: response.data?.id || Date.now(),
+          name: formData.name,
+          title: formData.name
+        };
+        
         showToast('success', 'Incidente registrado correctamente.');
         setIsCreating(false);
+        
+        setIncidents(prev => [createdIncident, ...prev.filter(inc => inc.id !== createdIncident.id)]);
+        setSelectedIncident(createdIncident);
       } else {
-        await axiosClient.put(`/v1/api/notifications/${selectedIncident?.id}`, payload);
+        const response = await axiosClient.put(`/v1/api/notifications/${selectedIncident?.id}`, payload);
+        const updatedIncident = {
+          ...(response.data || {}),
+          ...payload,
+          id: selectedIncident?.id,
+          name: formData.name,
+          title: formData.name
+        };
+        
         showToast('success', 'Incidente actualizado correctamente.');
+        
+        setIncidents(prev => [
+          updatedIncident, 
+          ...prev.filter(inc => inc.id !== selectedIncident?.id && inc.id !== updatedIncident.id)
+        ]);
+        setSelectedIncident(updatedIncident);
       }
       
-      fetchInitialData();
     } catch (error: any) {
       console.error("DATA DEL ERROR:", error?.response?.data);
 
@@ -292,7 +316,6 @@ export default function IncidentManagementPage() {
     }
 
     try {
-      // 🛠️ Usa exactamente la misma estructura unificada garantizando solución y resolución
       const payload = buildUnifiedPayload({
         solution: solutionText,
         resolution: solutionText

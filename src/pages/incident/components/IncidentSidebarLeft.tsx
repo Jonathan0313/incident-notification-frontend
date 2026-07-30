@@ -63,6 +63,7 @@ export function IncidentSidebarLeft({
           <div>
             {incidents.map((item, index) => {
               const itemId = item.id || item.name;
+              // 🛡️ Buscamos primero name, luego title y si no, caemos en 'Sin nombre'
               const itemName = item.name || item.title || 'Sin nombre';
               const isSelected = !isCreating && selectedIncident?.id === item.id;
 
