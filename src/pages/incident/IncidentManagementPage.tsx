@@ -30,8 +30,9 @@ export default function IncidentManagementPage() {
     handleApplyFirstStartTime,
     handleApplyFirstEndTime,
     handleApplyFirstAffectationType,
-    handleSetCurrentStartTimeFirst, // <-- 1. Añadido aquí
-    handleSetCurrentEndTimeFirst,   // <-- 1. Añadido aquí
+    handleSetCurrentStartTimeFirst,
+    handleSetCurrentEndTimeFirst,
+    handleMatchEndTimeWithStartTime, // <-- 1. Desglosado aquí del hook
     handleSubmit,
     handleCloseIncident,
     handleTemplateSelect,
@@ -83,8 +84,9 @@ export default function IncidentManagementPage() {
         onApplyFirstStartTime={handleApplyFirstStartTime}
         onApplyFirstEndTime={handleApplyFirstEndTime}
         onApplyFirstAffectationType={handleApplyFirstAffectationType}
-        onSetCurrentStartTimeFirst={handleSetCurrentStartTimeFirst} // <-- 2. Conectado aquí
-        onSetCurrentEndTimeFirst={handleSetCurrentEndTimeFirst}     // <-- 2. Conectado aquí
+        onSetCurrentStartTimeFirst={handleSetCurrentStartTimeFirst}
+        onSetCurrentEndTimeFirst={handleSetCurrentEndTimeFirst}
+        onMatchEndTimeWithStartTime={handleMatchEndTimeWithStartTime} // <-- 2. Conectado al componente correctamente
       />
 
       {isTemplateModalOpen && (

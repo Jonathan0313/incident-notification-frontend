@@ -4,8 +4,9 @@ interface IncidentSidebarRightProps {
   onApplyFirstStartTime: () => void;
   onApplyFirstEndTime: () => void;
   onApplyFirstAffectationType: () => void;
-  onSetCurrentStartTimeFirst: () => void; // <-- Nueva prop
-  onSetCurrentEndTimeFirst: () => void;   // <-- Nueva prop
+  onSetCurrentStartTimeFirst: () => void;
+  onSetCurrentEndTimeFirst: () => void;
+  onMatchEndTimeWithStartTime: () => void; // Prop para igualar fin con inicio
 }
 
 export function IncidentSidebarRight({
@@ -16,6 +17,7 @@ export function IncidentSidebarRight({
   onApplyFirstAffectationType,
   onSetCurrentStartTimeFirst,
   onSetCurrentEndTimeFirst,
+  onMatchEndTimeWithStartTime,
 }: IncidentSidebarRightProps) {
   return (
     <div style={{ width: '220px', minWidth: '220px', backgroundColor: '#ffffff', borderRadius: '8px', padding: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -39,7 +41,6 @@ export function IncidentSidebarRight({
           <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 700, color: '#334155' }}>Acciones rápidas:</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             
-            {/* Botones nuevos para la hora actual en el 1er servicio */}
             <button 
               type="button" 
               onClick={onSetCurrentStartTimeFirst}
@@ -71,6 +72,16 @@ export function IncidentSidebarRight({
             >
               🏁 Igualar Hora Fin
             </button>
+            
+            {/* Botón corregido con el mismo color azul estándar (#2563eb) */}
+            <button 
+              type="button" 
+              onClick={onMatchEndTimeWithStartTime}
+              style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '7px 8px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', width: '100%', fontSize: '11px' }}
+            >
+              🔄 Igualar Fin con Inicio
+            </button>
+
             <button 
               type="button" 
               onClick={onApplyFirstAffectationType}

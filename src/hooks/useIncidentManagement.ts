@@ -224,6 +224,25 @@ export function useIncidentManagement() {
     setAffectedServices(updated);
   };
 
+  // ==========================================
+  // FUNCIÓN CORREGIDA Y ROBUSTA PARA IGUALAR
+  // ==========================================
+  const handleMatchEndTimeWithStartTime = () => {
+    setAffectedServices(prevServices => {
+      if (!prevServices || prevServices.length === 0) return prevServices;
+      
+      const updated = [...prevServices];
+      const firstService = updated[0];
+
+      updated[0] = {
+        ...firstService,
+        endTime: firstService.startTime || firstService.endTime || ''
+      };
+      
+      return updated;
+    });
+  };
+
   const buildUnifiedPayload = (customFields = {}) => {
     const rawAdvances = formData.advances || formData.comments || formData.updates || [];
     const formattedAdvances = rawAdvances.map((adv: any, idx: number) => ({
@@ -383,6 +402,7 @@ export function useIncidentManagement() {
     handleApplyFirstAffectationType,
     handleSetCurrentStartTimeFirst,
     handleSetCurrentEndTimeFirst,
+    handleMatchEndTimeWithStartTime, // <-- Asegurado en el retorno
     handleSubmit, 
     handleCloseIncident, 
     handleTemplateSelect, 
