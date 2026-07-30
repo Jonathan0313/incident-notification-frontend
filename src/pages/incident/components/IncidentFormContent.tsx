@@ -15,7 +15,7 @@ interface IncidentFormContentProps {
   onCloseIncident?: () => void;
   onSaveAsTemplate?: () => void;
   onCancelCreation?: () => void;
-  onTemplateSelect: (type: 'description' | 'solution', templateName: string) => void;
+  onTemplateSelect: (type: 'description' | 'solution' | 'advances', templateName: string, advanceIndex?: number) => void;
   tableError?: boolean;
   setTableError?: (hasError: boolean) => void;
   showToast?: (type: 'success' | 'error', message: string) => void;
@@ -43,14 +43,25 @@ export function IncidentFormContent({
   
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  const descriptionTemplates = templates.filter(t => t.typeTemplate === 'Descripción');
-  const solutionTemplates = templates.filter(t => t.typeTemplate === 'Solución');
-  const advanceTemplates = templates.filter(t => t.typeTemplate === 'Avances');
+  // 🔄 Filtro exacto usando typeTemplate (con respaldo a type o Tipo por compatibilidad)
+  const descriptionTemplates = templates.filter((t: any) => {
+    const val = (t.typeTemplate || t.type || t.Tipo || '').trim().toLowerCase();
+    return val === 'descripción' || val === 'descripcion' || val === 'description';
+  });
+
+  const advanceTemplates = templates.filter((t: any) => {
+    const val = (t.typeTemplate || t.type || t.Tipo || '').trim().toLowerCase();
+    return val === 'avance' || val === 'avances' || val === 'advance';
+  });
+
+  const solutionTemplates = templates.filter((t: any) => {
+    const val = (t.typeTemplate || t.type || t.Tipo || '').trim().toLowerCase();
+    return val === 'solución' || val === 'solucion' || val === 'solution';
+  });
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Validar que exista al menos un servicio afectado
     if (!affectedServices || affectedServices.length === 0) {
       if (setTableError) setTableError(true);
       if (showToast) showToast('error', 'Debe agregar al menos un servicio afectado.');
@@ -61,7 +72,6 @@ export function IncidentFormContent({
       return;
     }
 
-    // 2. Validar que cada servicio tenga un nombre válido y su fecha de inicio
     const isValidServices = affectedServices.every(
       (service) => 
         service.nameService && 
@@ -93,7 +103,6 @@ export function IncidentFormContent({
 
       <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
         
-        {/* Contenedor de la Tabla con Referencia para Scroll */}
         <div 
           ref={tableContainerRef}
           style={{ 
@@ -120,7 +129,6 @@ export function IncidentFormContent({
           )}
         </div>
 
-        {/* Nombre */}
         <div>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Nombre: *</label>
           <input 
@@ -132,7 +140,6 @@ export function IncidentFormContent({
           />
         </div>
 
-        {/* Impacto */}
         <div>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Impacto: *</label>
           <input 
@@ -144,7 +151,6 @@ export function IncidentFormContent({
           />
         </div>
 
-        {/* Funcionalidades */}
         <div>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Funcionalidades: *</label>
           <input 
@@ -156,7 +162,6 @@ export function IncidentFormContent({
           />
         </div>
 
-        {/* Componentes Afectados */}
         <div>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Componentes Afectados: *</label>
           <input 
@@ -168,7 +173,6 @@ export function IncidentFormContent({
           />
         </div>
 
-        {/* Jira */}
         <div>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Jira:</label>
           <input 
@@ -179,7 +183,6 @@ export function IncidentFormContent({
           />
         </div>
 
-        {/* Caso Aliado */}
         <div>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Caso Aliado:</label>
           <input 
@@ -203,7 +206,7 @@ export function IncidentFormContent({
               }}
               style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', cursor: 'pointer' }}
             >
-              <option value="">📄 Cargar plantilla en Descripción...</option>
+              <option value="">📄 Cargar plantilla...</option>
               {descriptionTemplates.map((t, idx) => (
                 <option key={idx} value={t.name}>{t.name}</option>
               ))}
@@ -252,19 +255,13 @@ export function IncidentFormContent({
                       <select 
                         onChange={(e) => { 
                           if (e.target.value) {
-                            const found = advanceTemplates.find(t => t.name === e.target.value);
-                            if (found) {
-                              const updated = [...formData.advances];
-                              updated[index].sequence = index + 1;
-                              updated[index].content = found.messageTemplate;
-                              setFormData({ ...formData, advances: updated });
-                            }
+                            onTemplateSelect('advances', e.target.value, index);
                             e.target.value = '';
                           }
                         }}
                         style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', cursor: 'pointer' }}
                       >
-                        <option value="">📄 Cargar plantilla en Avance...</option>
+                        <option value="">📄 Cargar plantilla...</option>
                         {advanceTemplates.map((t, idx) => (
                           <option key={idx} value={t.name}>{t.name}</option>
                         ))}
@@ -314,7 +311,7 @@ export function IncidentFormContent({
               }}
               style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', cursor: 'pointer' }}
             >
-              <option value="">📄 Cargar plantilla en Solución...</option>
+              <option value="">📄 Cargar plantilla...</option>
               {solutionTemplates.map((t, idx) => (
                 <option key={idx} value={t.name}>{t.name}</option>
               ))}
@@ -328,7 +325,6 @@ export function IncidentFormContent({
           />
         </div>
 
-        {/* Botones inferiores de acción */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', borderTop: '1px solid #e2e8f0', paddingTop: '15px' }}>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>

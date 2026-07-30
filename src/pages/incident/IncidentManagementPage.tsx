@@ -63,9 +63,19 @@ export default function IncidentManagementPage() {
       const rawServices = srvRes.data;
       setAvailableServices(Array.isArray(rawServices) ? rawServices : (rawServices?.content || rawServices?.data || []));
 
-      const tplRes = await axiosClient.get('/v1/api/notification-templates').catch(() => ({ data: [] }));
+      // 1. CORREGIDO: Se apunta a la URL correcta '/v1/api/templates'
+      const tplRes = await axiosClient.get('/v1/api/templates').catch(() => ({ data: [] }));
       const rawTpl = tplRes.data;
-      setTemplates(Array.isArray(rawTpl) ? rawTpl : (rawTpl?.content || rawTpl?.data || []));
+      const tplArray = Array.isArray(rawTpl) ? rawTpl : (rawTpl?.content || rawTpl?.data || []);
+
+      // 2. NUEVO: Ordenar las plantillas alfabéticamente por nombre
+      const sortedTemplates = tplArray.sort((a: any, b: any) => {
+        const nameA = a.name?.toLowerCase() || '';
+        const nameB = b.name?.toLowerCase() || '';
+        return nameA.localeCompare(nameB);
+      });
+
+      setTemplates(sortedTemplates);
 
       if (filterType === 'open') {
         const openRes = await axiosClient.get('/v1/api/notifications/open').catch(() => ({ data: [] }));
@@ -76,7 +86,7 @@ export default function IncidentManagementPage() {
         const rawClosed = closedRes.data;
         setIncidents(Array.isArray(rawClosed) ? rawClosed : (rawClosed?.content || rawClosed?.data || []));
       } else if (filterType === 'templates') {
-        setIncidents(Array.isArray(rawTpl) ? rawTpl : (rawTpl?.content || rawTpl?.data || []));
+        setIncidents(sortedTemplates);
       }
 
     } catch (error) {
@@ -206,7 +216,6 @@ export default function IncidentManagementPage() {
     setAffectedServices(updated);
   };
 
-  // 🛠️ Función unificada para construir el payload asegurando name y title
   const buildUnifiedPayload = (customFields = {}) => {
     const rawAdvances = formData.advances || formData.comments || formData.updates || [];
     
@@ -380,12 +389,43 @@ export default function IncidentManagementPage() {
             setFormData({ name: '', impact: '', functionality: '', affectedComponent: '', jira: '', partnerCase: '', aliasedCase: '', description: '', solution: '', resolution: '', comments: [], updates: [], advances: [] });
             setAffectedServices([]);
           }}
-          onTemplateSelect={(type, name) => {
-            const found = templates.find(t => t.name === name);
-            if (found) {
-              if (type === 'description') setFormData({ ...formData, description: found.messageTemplate });
-              if (type === 'solution') setFormData({ ...formData, solution: found.messageTemplate, resolution: found.messageTemplate });
-            }
+          onTemplateSelect={(type, templateName, advanceIndex) => {
+            const found = templates.find(t => t.name === templateName);
+            if (!found) return;
+
+            const messageContent = found.message || found.messageTemplate || found.content || found.body || '';
+
+            setFormData((prev: any) => {
+              if (type === 'description') {
+                return { ...prev, description: messageContent };
+              }
+              
+              if (type === 'solution') {
+                return { ...prev, solution: messageContent, resolution: messageContent };
+              }
+              
+              if (type === 'advances') {
+                const currentAdvances = [...(prev.advances || prev.comments || prev.updates || [])];
+                
+                if (advanceIndex !== undefined && currentAdvances[advanceIndex]) {
+                  currentAdvances[advanceIndex] = {
+                    ...currentAdvances[advanceIndex],
+                    sequence: advanceIndex + 1,
+                    content: messageContent,
+                    message: messageContent
+                  };
+                }
+
+                return {
+                  ...prev,
+                  comments: currentAdvances,
+                  updates: currentAdvances,
+                  advances: currentAdvances
+                };
+              }
+
+              return prev;
+            });
           }}
         />
       ) : (
