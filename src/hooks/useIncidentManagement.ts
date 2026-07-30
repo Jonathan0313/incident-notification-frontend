@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { incidentService } from '../services/incidentService';
-import { notificationTemplateService } from '../services/notificationTemplateService'; // <-- 1. Importar el nuevo servicio
+import { notificationTemplateService } from '../services/notificationTemplateService';
 import { useAffectedServices } from './useAffectedServices';
 import { useIncidentTemplate } from './useIncidentTemplate';
 
@@ -62,7 +62,6 @@ export function useIncidentManagement() {
       const rawServices = await incidentService.getAllServices();
       setAvailableServices(Array.isArray(rawServices) ? rawServices : (rawServices?.content || rawServices?.data || []));
 
-      // --- 2. CAMBIO AQUÍ: Usamos notificationTemplateService en lugar de incidentService.getTemplates ---
       let rawTpl = [];
       try {
         rawTpl = await notificationTemplateService.getAll();
@@ -132,7 +131,13 @@ export function useIncidentManagement() {
 
     try {
       setLoading(true);
-      const fullData = await incidentService.getById(inc.id);
+      let fullData;
+
+      if (filterType === 'templates') {
+        fullData = await notificationTemplateService.getById(inc.id);
+      } else {
+        fullData = await incidentService.getById(inc.id);
+      }
       
       const resolvedSol = fullData.solution || fullData.resolution || '';
       const rawFullComments = fullData.comments || inc.comments || [];
@@ -356,6 +361,7 @@ export function useIncidentManagement() {
     availableServices, 
     templates, 
     selectedIncident, 
+    setSelectedIncident,
     isCreating,
     setIsCreating,
     filterType, 
@@ -365,6 +371,7 @@ export function useIncidentManagement() {
     isTemplateModalOpen, 
     setIsTemplateModalOpen, 
     toast,
+    showToast,
     setFilterType, 
     handleStartCreate, 
     handleSelectIncident,

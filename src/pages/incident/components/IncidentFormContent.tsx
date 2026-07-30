@@ -8,6 +8,7 @@ interface IncidentFormContentProps {
   availableServices: any[];
   isCreating: boolean;
   templates: any[];
+  filterType?: string; // <-- Añadido para saber si estamos en plantillas
   onAddService: () => void;
   onDeleteService: (index: number) => void;
   onServiceChange: (index: number, field: string, value: string) => void;
@@ -28,6 +29,7 @@ export function IncidentFormContent({
   availableServices,
   isCreating,
   templates,
+  filterType,
   onAddService,
   onDeleteService,
   onServiceChange,
@@ -94,13 +96,13 @@ export function IncidentFormContent({
     onSubmit(e);
   };
 
-  // Verificamos si el incidente ya se encuentra cerrado
   const isClosed = formData.status === 'Closed' || formData.status === 'CLOSED';
+  const isTemplateView = filterType === 'templates'; // Detecta si estamos visualizando plantillas
 
   return (
     <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', flex: 1, overflowY: 'auto' }}>
       <h2 style={{ marginTop: 0, fontSize: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-        {isCreating ? 'Crear Nuevo Incidente' : isClosed ? 'Incidente Cerrado (Editar)' : 'Editar Incidente'}
+        {isCreating ? 'Crear Nuevo Incidente' : isClosed ? 'Incidente Cerrado (Editar)' : isTemplateView ? 'Editar Plantilla' : 'Editar Incidente'}
       </h2>
 
       <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
@@ -136,9 +138,22 @@ export function IncidentFormContent({
           <input 
             type="text" 
             required
+            readOnly={isTemplateView && !isCreating} // <-- El campo nombre no se permite modificar si es una plantilla existente
             value={formData.name || ''} 
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+            onChange={(e) => {
+              if (!(isTemplateView && !isCreating)) {
+                setFormData({ ...formData, name: e.target.value });
+              }
+            }}
+            style={{ 
+              width: '100%', 
+              padding: '8px', 
+              borderRadius: '6px', 
+              border: '1px solid #cbd5e1', 
+              boxSizing: 'border-box',
+              backgroundColor: isTemplateView && !isCreating ? '#f1f5f9' : '#fff', // Apariencia visual de campo bloqueado
+              cursor: isTemplateView && !isCreating ? 'not-allowed' : 'text'
+            }}
           />
         </div>
 
@@ -195,7 +210,6 @@ export function IncidentFormContent({
           />
         </div>
 
-        {/* Descripción de la falla */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Descripción de la falla: *</label>
@@ -223,7 +237,6 @@ export function IncidentFormContent({
           />
         </div>
 
-        {/* Sección de Comentarios / Avances */}
         <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <label style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>Avances:</label>
@@ -304,7 +317,6 @@ export function IncidentFormContent({
           )}
         </div>
 
-        {/* Solución */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Solución: *</label>
@@ -336,8 +348,16 @@ export function IncidentFormContent({
             <button type="submit" style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
               {isCreating ? 'Guardar Nuevo Incidente' : 'Guardar Cambios'}
             </button>
-            {onSaveAsTemplate && (
-              <button type="button" onClick={onSaveAsTemplate} style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+            {onSaveAsTemplate && !isTemplateView && (
+              <button 
+                type="button" 
+                onClick={async () => {
+                  try {
+                    await onSaveAsTemplate();
+                  } catch (err: any) {}
+                }} 
+                style={{ backgroundColor: '#8b5cf6', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
+              >
                 💾 Guardar como Plantilla
               </button>
             )}
@@ -351,10 +371,10 @@ export function IncidentFormContent({
                 </button>
               )
             ) : (
-              /* Ocultar botón "Cerrar Incidente" si el incidente ya está cerrado */
               (!isClosed && onCloseIncident) && (
                 <button type="button" onClick={() => onCloseIncident(formData.comments)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                  Cerrar Incidente
+                  {/* Cambia el texto del botón según si es plantilla o incidente */}
+                  {isTemplateView ? 'Eliminar plantilla' : 'Cerrar Incidente'}
                 </button>
               )
             )}

@@ -1,4 +1,50 @@
+import { notificationTemplateService } from '../services/notificationTemplateService';
+
 export function useIncidentTemplate(formData: any, affectedServices: any[], showToast: (type: 'success' | 'error', msg: string) => void) {
+  
+  // Función para guardar en el nuevo endpoint /v1/api/notification-templates
+  const handleSaveNotificationTemplate = async () => {
+    if (!formData) return;
+
+    try {
+      const rawAdvances = formData.advances || formData.comments || formData.updates || [];
+      const formattedComments = Array.isArray(rawAdvances)
+        ? rawAdvances.map((comm: any, idx: number) => ({
+            sequence: comm?.sequence || idx + 1,
+            content: comm?.content || comm?.message || comm?.text || ''
+          })).filter((comm: any) => comm.content.trim() !== '')
+        : [];
+
+      const payload = {
+        name: formData.name || 'Plantilla de Notificación',
+        subject: formData.jira ? `Incidente: ${formData.jira}` : (formData.name || 'Notificación'),
+        impact: formData.impact || '',
+        functionality: formData.functionality || '',
+        affectedComponent: formData.affectedComponent || '',
+        jira: formData.jira || '',
+        partnerCase: formData.partnerCase || formData.aliasedCase || '',
+        description: formData.description || '',
+        solution: formData.solution || formData.resolution || '',
+        resolution: formData.solution || formData.resolution || '',
+        affectedServices: affectedServices || [],
+        comments: formattedComments
+      };
+
+      await notificationTemplateService.create(payload);
+      showToast('success', 'Plantilla guardada correctamente en notification-templates.');
+    } catch (error: any) {
+      const errorData = error?.response?.data;
+      let errorMessage = 'Error al guardar la plantilla en el servidor.';
+      if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      } else if (errorData?.message) {
+        errorMessage = errorData.message;
+      }
+      showToast('error', errorMessage);
+    }
+  };
+
+  // Función original para copiar al portapapeles
   const handleCopyTemplate = async () => {
     if (!formData) return;
 
@@ -51,7 +97,6 @@ export function useIncidentTemplate(formData: any, affectedServices: any[], show
       }
     }
 
-    // Validación de solución para texto plano
     const solutionText = (formData.solution || formData.resolution || '').trim();
 
     const plainTextParts = [
@@ -63,7 +108,7 @@ export function useIncidentTemplate(formData: any, affectedServices: any[], show
       formData.affectedComponent ? `Componente Afectado: ${formData.affectedComponent}` : '',
       formData.description ? `Descripción de la falla: ${formData.description}` : '',
       advancesPlainText.trim() ? `\n${advancesPlainText.trim()}` : '',
-      solutionText ? `Solución: ${solutionText}` : '' // <-- Solo se incluye si tiene contenido
+      solutionText ? `Solución: ${solutionText}` : ''
     ];
 
     const finalPlainText = plainTextParts.filter(Boolean).join('\n');
@@ -99,7 +144,6 @@ export function useIncidentTemplate(formData: any, affectedServices: any[], show
           .join('')
       : '';
 
-    // Validación de solución para HTML (si está vacío, renderiza un string vacío)
     const solutionHtml = solutionText 
       ? `<div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Solución:</b> ${solutionText}</div>` 
       : '';
@@ -149,5 +193,5 @@ export function useIncidentTemplate(formData: any, affectedServices: any[], show
     }
   };
 
-  return { handleCopyTemplate };
+  return { handleCopyTemplate, handleSaveNotificationTemplate };
 }
