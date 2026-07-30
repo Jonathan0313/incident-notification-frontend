@@ -248,20 +248,21 @@ export function useIncidentManagement() {
             await fetchInitialData();
           } else {
             const updatedIncident = {
+              ...selectedIncident,
               ...(responseData || {}),
               ...payload,
               id: selectedIncident?.id,
               name: formData.name,
-              title: formData.name
+              title: formData.name,
+              affectedServices: affectedServices
             };
 
+            // 🚀 Coloca el incidente actualizado en la primera posición sin llamar a fetchInitialData() para evitar que se desordene
             setIncidents(prev => [
               updatedIncident,
               ...prev.filter(inc => inc.id !== selectedIncident?.id)
             ]);
             setSelectedIncident(updatedIncident);
-            
-            await fetchInitialData();
           }
         }
       }
