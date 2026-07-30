@@ -17,8 +17,16 @@ export default function IncidentManagementPage() {
   const [loading, setLoading] = useState<boolean>(false);
   
   const [formData, setFormData] = useState<any>({
+    name: '',
+    impact: '',
+    functionality: '',
+    affectedComponent: '',
+    jira: '',
     partnerCase: '',
     aliasedCase: '',
+    description: '',
+    solution: '',
+    resolution: '',
     comments: [],
     updates: [],
     advances: []
@@ -37,12 +45,12 @@ export default function IncidentManagementPage() {
     fetchInitialData();
   }, [filterType]);
 
-  // 🛡️ Sincroniza automáticamente aliasedCase con partnerCase para la BD
+  // 🛡️ Sincroniza automáticamente aliasedCase con partnerCase
   useEffect(() => {
-    if (formData?.aliasedCase && formData?.partnerCase !== formData?.aliasedCase) {
+    if (formData?.aliasedCase !== undefined && formData?.partnerCase !== formData?.aliasedCase) {
       setFormData((prev: any) => ({
         ...prev,
-        partnerCase: prev.aliasedCase
+        partnerCase: prev.aliasedCase || ''
       }));
     }
   }, [formData?.aliasedCase]);
@@ -82,8 +90,16 @@ export default function IncidentManagementPage() {
     setIsCreating(true);
     setSelectedIncident(null);
     setFormData({ 
+      name: '',
+      impact: '',
+      functionality: '',
+      affectedComponent: '',
+      jira: '',
       partnerCase: '', 
       aliasedCase: '',
+      description: '',
+      solution: '',
+      resolution: '',
       comments: [], 
       updates: [], 
       advances: [] 
@@ -97,9 +113,18 @@ export default function IncidentManagementPage() {
     
     const initialAdvances = inc.advances || inc.comments || inc.updates || [];
     const caseValue = inc.partnerCase || inc.aliasedCase || '';
+    const solValue = inc.solution || inc.resolution || '';
 
     setFormData({
       ...inc,
+      name: inc.name || '',
+      impact: inc.impact || '',
+      functionality: inc.functionality || '',
+      affectedComponent: inc.affectedComponent || '',
+      jira: inc.jira || '',
+      description: inc.description || '',
+      solution: solValue,
+      resolution: solValue,
       partnerCase: caseValue,
       aliasedCase: caseValue,
       comments: initialAdvances,
@@ -115,18 +140,21 @@ export default function IncidentManagementPage() {
       const res = await axiosClient.get(`/v1/api/notifications/${inc.id}`);
       const fullData = res.data;
       
-      if (fullData.resolution && !fullData.solution) {
-        fullData.solution = fullData.resolution;
-      } else if (fullData.solution && !fullData.resolution) {
-        fullData.resolution = fullData.solution;
-      }
-
+      const resolvedSol = fullData.solution || fullData.resolution || '';
       const resolvedAdvances = fullData.advances || fullData.comments || fullData.updates || inc.advances || inc.comments || [];
       const resolvedCase = fullData.partnerCase || fullData.aliasedCase || inc.partnerCase || inc.aliasedCase || '';
 
       setFormData({
         ...inc,
         ...fullData,
+        name: fullData.name || inc.name || '',
+        impact: fullData.impact || inc.impact || '',
+        functionality: fullData.functionality || inc.functionality || '',
+        affectedComponent: fullData.affectedComponent || inc.affectedComponent || '',
+        jira: fullData.jira || inc.jira || '',
+        description: fullData.description || inc.description || '',
+        solution: resolvedSol,
+        resolution: resolvedSol,
         partnerCase: resolvedCase,
         aliasedCase: resolvedCase,
         comments: resolvedAdvances,
@@ -178,22 +206,42 @@ export default function IncidentManagementPage() {
     setAffectedServices(updated);
   };
 
+  // 🛠️ FUNCIÓN ÚNICA PARA ARMAR EL PAYLOAD (Garantiza que ningún campo falte y se envíen vacíos si corresponde)
+  const buildUnifiedPayload = (customFields = {}) => {
+    const rawAdvances = formData.advances || formData.comments || formData.updates || [];
+    
+    // Aseguramos que cada avance tenga su estructura correcta de sequence y content
+    const formattedAdvances = rawAdvances.map((adv: any, idx: number) => ({
+      sequence: adv.sequence || idx + 1,
+      content: adv.content || adv.message || ''
+    }));
+
+    const caseValue = formData.partnerCase || formData.aliasedCase || '';
+    const solValue = formData.solution || formData.resolution || '';
+
+    return {
+      name: formData.name || '',
+      impact: formData.impact || '',
+      functionality: formData.functionality || '',
+      affectedComponent: formData.affectedComponent || '',
+      jira: formData.jira || '',
+      partnerCase: caseValue,
+      aliasedCase: caseValue,
+      description: formData.description || '',
+      solution: solValue,
+      resolution: solValue,
+      affectedServices: affectedServices || [],
+      comments: formattedAdvances,
+      updates: formattedAdvances,
+      advances: formattedAdvances,
+      ...customFields // Permite sobreescribir o inyectar propiedades específicas si se requiere
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // 🔍 Priorizamos formData.advances que es donde escribe el componente hijo
-      const currentAdvances = formData.advances || formData.comments || formData.updates || [];
-      const finalPartnerCase = formData.partnerCase || formData.aliasedCase || null;
-
-      const payload = { 
-        ...formData, 
-        partnerCase: finalPartnerCase,
-        aliasedCase: finalPartnerCase,
-        affectedServices,
-        comments: currentAdvances,
-        updates: currentAdvances,
-        advances: currentAdvances
-      };
+      const payload = buildUnifiedPayload();
       
       if (isCreating) {
         await axiosClient.post('/v1/api/notifications', payload);
@@ -244,21 +292,11 @@ export default function IncidentManagementPage() {
     }
 
     try {
-      // 🔍 Priorizamos formData.advances para asegurar que viajen al cerrar
-      const currentAdvances = formData.advances || formData.comments || formData.updates || [];
-      const finalPartnerCase = formData.partnerCase || formData.aliasedCase || null;
-
-      const payload = { 
-        ...formData, 
-        partnerCase: finalPartnerCase,
-        aliasedCase: finalPartnerCase,
+      // 🛠️ Usa exactamente la misma estructura unificada garantizando solución y resolución
+      const payload = buildUnifiedPayload({
         solution: solutionText,
-        resolution: solutionText, 
-        affectedServices,
-        comments: currentAdvances,
-        updates: currentAdvances,
-        advances: currentAdvances
-      };
+        resolution: solutionText
+      });
       
       await axiosClient.put(`/v1/api/notifications/${selectedIncident.id}/close`, payload);
       
@@ -316,7 +354,7 @@ export default function IncidentManagementPage() {
           onSaveAsTemplate={() => setIsTemplateModalOpen(true)}
           onCancelCreation={() => {
             setIsCreating(false);
-            setFormData({ partnerCase: '', aliasedCase: '', comments: [], updates: [], advances: [] });
+            setFormData({ name: '', impact: '', functionality: '', affectedComponent: '', jira: '', partnerCase: '', aliasedCase: '', description: '', solution: '', resolution: '', comments: [], updates: [], advances: [] });
             setAffectedServices([]);
           }}
           onTemplateSelect={(type, name) => {
