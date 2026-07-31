@@ -41,7 +41,7 @@ export function IncidentSidebarLeft({
           onClick={() => onFilterChange('closed_recent')}
           style={{ flex: 1, padding: '6px 4px', fontSize: '10px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: filterType === 'closed_recent' ? 'bold' : 'normal', backgroundColor: filterType === 'closed_recent' ? '#fff' : 'transparent', color: filterType === 'closed_recent' ? '#0f172a' : '#64748b', boxShadow: filterType === 'closed_recent' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none' }}
         >
-          Cerrados
+          Cerrados (2 Hours)
         </button>
         <button 
           onClick={() => onFilterChange('templates')}
