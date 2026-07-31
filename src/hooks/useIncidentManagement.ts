@@ -7,8 +7,8 @@ import { useIncidentTemplate } from './useIncidentTemplate';
 const initialFormState = {
   name: '',
   impact: '',
-  functionality: '',
-  affectedComponent: '',
+  functionality: 'Ok',
+  affectedComponent: 'En investigación',
   jira: '',
   partnerCase: '',
   aliasedCase: '',
@@ -236,18 +236,43 @@ export function useIncidentManagement() {
         if (isCreating) {
           const responseData = await incidentService.create(payload);
 
+          // 1. Intentar extraer el ID si la API lo devuelve de alguna forma
+          let realId = responseData?.id || responseData?.data?.id || responseData?.incidentId || responseData?.data?.incidentId;
+
+          // 2. Si la API devolvió vacío, buscamos el incidente por nombre en la lista de abiertos
+          if (!realId) {
+            const rawOpen = await incidentService.getOpen();
+            const openList = Array.isArray(rawOpen) ? rawOpen : (rawOpen?.content || rawOpen?.data || []);
+            
+            const matchedIncident = openList.find((inc: any) => 
+              (inc.name === formData.name || inc.title === formData.name)
+            );
+
+            if (matchedIncident?.id) {
+              realId = matchedIncident.id;
+            }
+          }
+
+          if (!realId) {
+            throw new Error('El servidor creó el incidente pero no fue posible obtener su identificador.');
+          }
+
           const createdIncident = {
-            ...(responseData || {}),
+            ...(responseData?.data || responseData || {}),
             ...payload,
-            id: responseData?.id || Date.now(),
+            id: realId,
             name: formData.name,
-            title: formData.name
+            title: formData.name,
+            affectedServices: affectedServices
           };
           
           showToast('success', 'Incidente registrado correctamente.');
           setIsCreating(false);
-          setIncidents(prev => [createdIncident, ...prev.filter(inc => inc.id !== createdIncident.id)]);
+          
+          setIncidents(prev => [createdIncident, ...prev.filter(inc => inc.id !== realId)]);
           setSelectedIncident(createdIncident);
+          setFormData(createdIncident);
+
         } else {
           const responseData = await incidentService.update(selectedIncident?.id, payload);
 
@@ -280,7 +305,7 @@ export function useIncidentManagement() {
       }
     } catch (error: any) {
       const errorData = error?.response?.data;
-      let errorMessage = 'Error al guardar.';
+      let errorMessage = error?.message || 'Error al guardar.';
       if (errorData && typeof errorData === 'object' && !Array.isArray(errorData)) {
         const messages = Object.values(errorData);
         errorMessage = messages.length > 0 ? messages.join(' | ') : (errorData.message || errorMessage);

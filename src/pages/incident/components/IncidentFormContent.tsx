@@ -175,23 +175,23 @@
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Funcionalidades: *</label>
+          {/*<div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Funcionalidades Ok: *</label>
             <input 
               type="text" 
               required
-              value={formData.functionality || ''} 
+              value={formData.functionality || 'Ok'} 
               onChange={(e) => setFormData({ ...formData, functionality: e.target.value })}
               style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
             />
-          </div>
+          </div>*/}
 
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Componentes Afectados: *</label>
             <input 
               type="text" 
               required
-              value={formData.affectedComponent || ''} 
+              value={formData.affectedComponent || 'En investigación'} 
               onChange={(e) => setFormData({ ...formData, affectedComponent: e.target.value })}
               style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
             />

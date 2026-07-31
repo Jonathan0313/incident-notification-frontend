@@ -169,7 +169,7 @@ export function useIncidentTemplate(formData: any, affectedServices: any[], show
         </div>
 
         <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Impacto A Usuarios:</b> ${formData.impact || ''}</div>
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Funcionalidades OK:</b> ${formData.functionality || ''}</div>
+        <!--<div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Funcionalidades OK:</b> ${formData.functionality || ''}</div>  -->
         <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Jira:</b> ${ticketCode ? `<a href="${fullJiraUrl}" target="_blank" style="color: #0052CC; text-decoration: underline;">${ticketCode}</a>` : ''}</div>
         <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Caso Aliado:</b> ${formData.partnerCase || formData.aliasedCase || ''}</div>
         <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Componente Afectado:</b> ${formData.affectedComponent || ''}</div>
