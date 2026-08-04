@@ -1,3 +1,4 @@
+// src/services/axiosClient.ts
 import axios from 'axios';
 
 // Configura aquí la URL base de tu backend
@@ -9,3 +10,17 @@ export const axiosClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Interceptor para inyectar automáticamente el token JWT en las peticiones protegidas
+axiosClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
