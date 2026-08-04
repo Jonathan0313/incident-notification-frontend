@@ -16,16 +16,16 @@ export function useIncidentTemplate(formData: any, affectedServices: any[], show
         : [];
 
       const payload = {
-        name: formData.name || 'Plantilla de Notificación',
-        subject: formData.jira ? `Incidente: ${formData.jira}` : (formData.name || 'Notificación'),
-        impact: formData.impact || '',
-        functionality: formData.functionality || '',
-        affectedComponent: formData.affectedComponent || '',
-        jira: formData.jira || '',
-        partnerCase: formData.partnerCase || formData.aliasedCase || '',
-        description: formData.description || '',
-        solution: formData.solution || formData.resolution || '',
-        resolution: formData.solution || formData.resolution || '',
+        name: formData.name ?? 'Plantilla de Notificación',
+        subject: formData.jira ? `Incidente: ${formData.jira}` : (formData.name ?? 'Notificación'),
+        impact: formData.impact ?? '',
+        functionality: formData.functionality ?? '',
+        affectedComponent: formData.affectedComponent ?? '',
+        jira: formData.jira ?? '',
+        partnerCase: formData.partnerCase ?? formData.aliasedCase ?? '',
+        description: formData.description ?? '',
+        solution: formData.solution ?? formData.resolution ?? '',
+        resolution: formData.solution ?? formData.resolution ?? '',
         affectedServices: affectedServices || [],
         comments: formattedComments
       };
@@ -44,11 +44,11 @@ export function useIncidentTemplate(formData: any, affectedServices: any[], show
     }
   };
 
-  // Función original para copiar al portapapeles
+  // Función para copiar al portapapeles con limpieza estricta en todos los campos
   const handleCopyTemplate = async () => {
     if (!formData) return;
 
-    const rawJiraInput = formData.jira || '';
+    const rawJiraInput = formData.jira ?? '';
     let ticketCode = '';
     let fullJiraUrl = '';
 
@@ -97,16 +97,22 @@ export function useIncidentTemplate(formData: any, affectedServices: any[], show
       }
     }
 
-    const solutionText = (formData.solution || formData.resolution || '').trim();
+    // 🚀 Uso estricto de ?? para evitar residuos si se borra el contenido
+    const impactText = (formData.impact ?? '').trim();
+    const functionalityText = (formData.functionality ?? '').trim();
+    const partnerCaseText = (formData.partnerCase ?? formData.aliasedCase ?? '').trim();
+    const affectedComponentText = (formData.affectedComponent ?? '').trim();
+    const descriptionText = (formData.description ?? '').trim();
+    const solutionText = (formData.solution ?? formData.resolution ?? '').trim();
 
     const plainTextParts = [
       servicesPlainText,
-      formData.impact ? `Impacto A Usuarios: ${formData.impact}` : '',
-      formData.functionality ? `Funcionalidades OK: ${formData.functionality}` : '',
+      impactText ? `Impacto A Usuarios: ${impactText}` : '',
+      functionalityText ? `Funcionalidades OK: ${functionalityText}` : '',
       ticketCode ? `Jira: ${ticketCode} (${fullJiraUrl})` : '',
-      (formData.partnerCase || formData.aliasedCase)?.trim() ? `Caso Aliado: ${formData.partnerCase || formData.aliasedCase}` : '',
-      formData.affectedComponent ? `Componente Afectado: ${formData.affectedComponent}` : '',
-      formData.description ? `Descripción de la falla: ${formData.description}` : '',
+      partnerCaseText ? `Caso Aliado: ${partnerCaseText}` : '',
+      affectedComponentText ? `Componente Afectado: ${affectedComponentText}` : '',
+      descriptionText ? `Descripción de la falla: ${descriptionText}` : '',
       advancesPlainText.trim() ? `\n${advancesPlainText.trim()}` : '',
       solutionText ? `Solución: ${solutionText}` : ''
     ];
@@ -168,12 +174,12 @@ export function useIncidentTemplate(formData: any, affectedServices: any[], show
           </table>
         </div>
 
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Impacto A Usuarios:</b> ${formData.impact || ''}</div>
-        <!--<div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Funcionalidades OK:</b> ${formData.functionality || ''}</div>  -->
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Impacto A Usuarios:</b> ${impactText}</div>
+        <!--<div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Funcionalidades OK:</b> ${functionalityText}</div>-->
         <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Jira:</b> ${ticketCode ? `<a href="${fullJiraUrl}" target="_blank" style="color: #0052CC; text-decoration: underline;">${ticketCode}</a>` : ''}</div>
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Caso Aliado:</b> ${formData.partnerCase || formData.aliasedCase || ''}</div>
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Componente Afectado:</b> ${formData.affectedComponent || ''}</div>
-        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Descripción de la falla:</b> ${formData.description || ''}</div>
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Caso Aliado:</b> ${partnerCaseText}</div>
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Componente Afectado:</b> ${affectedComponentText}</div>
+        <div style="margin: 4px 0; color: #000000;"><b style="color: #000000;">Descripción de la falla:</b> ${descriptionText}</div>
         
         ${commentsHtml ? `<ul style="padding-left: 20px; margin: 8px 0; color: #000000;">${commentsHtml}</ul>` : ''}
         
