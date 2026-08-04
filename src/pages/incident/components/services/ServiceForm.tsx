@@ -11,7 +11,7 @@ interface ServiceFormProps {
 
 export function ServiceForm({ selectedService, setSelectedService, refreshServices, showToast }: ServiceFormProps) {
   const [formData, setFormData] = useState<Service>({
-    code: '',
+    id: undefined,
     name: '',
     isBia: false,
     active: true
@@ -26,7 +26,7 @@ export function ServiceForm({ selectedService, setSelectedService, refreshServic
   }, [selectedService]);
 
   const resetForm = () => {
-    setFormData({ code: '', name: '', isBia: false, active: true });
+    setFormData({ id: undefined, name: '', isBia: false, active: true });
     setSelectedService(null);
   };
 
@@ -34,7 +34,8 @@ export function ServiceForm({ selectedService, setSelectedService, refreshServic
     e.preventDefault();
     try {
       if (selectedService) {
-        await axiosClient.put(`/v1/api/services/${formData.code}`, formData);
+        // 💡 Usamos el nombre original (o el nuevo formData.name) según lo que espere tu backend para actualizar
+        await axiosClient.put(`/v1/api/services/${encodeURIComponent(selectedService.name)}`, formData);
         showToast('success', 'Servicio actualizado con éxito');
       } else {
         await axiosClient.post('/v1/api/services', formData);
@@ -63,28 +64,6 @@ export function ServiceForm({ selectedService, setSelectedService, refreshServic
       </h3>
       
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div>
-          <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Código:</label>
-          <input 
-            type="text" 
-            value={formData.code} 
-            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-            placeholder="Ej. S4"
-            required
-            disabled={selectedService !== null}
-            style={{ 
-              width: '100%', 
-              padding: '8px', 
-              borderRadius: '4px', 
-              border: '1px solid var(--border-color)', 
-              marginTop: '4px', 
-              boxSizing: 'border-box',
-              backgroundColor: selectedService !== null ? '#f1f5f9' : '#fff',
-              cursor: selectedService !== null ? 'not-allowed' : 'text'
-            }}
-          />
-        </div>
-
         <div>
           <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Nombre del Servicio:</label>
           <input 

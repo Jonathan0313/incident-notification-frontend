@@ -6,7 +6,6 @@ import { Toast } from './incident/components/ui/Toast';
 
 export interface Service {
   id?: number;
-  code: string;
   name: string;
   isBia: boolean;
   active: boolean;
