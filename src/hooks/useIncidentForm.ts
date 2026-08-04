@@ -47,7 +47,7 @@ const getCurrentFormattedDate = () => {
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
-export function useIncidentForm(selectedIncident: Incident | null, onIncidentSaved: () => void, showToast?: (type: 'success' | 'error', defaultMessage: string, errorObj?: any) => void) {
+export function useIncidentForm(selectedIncident: Incident | null, onIncidentSaved: () => void, _showToast?: (type: 'success' | 'error', defaultMessage: string, errorObj?: any) => void) {
   const [isCreating, setIsCreating] = useState(false);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
   const [formData, setFormData] = useState<Incident | null>(null);

@@ -1,5 +1,5 @@
 // src/pages/UserManagementPage.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { axiosClient } from '../services/axiosClient';
 import { UserTable } from '../components/users/UserTable';
