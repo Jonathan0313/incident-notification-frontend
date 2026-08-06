@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useIncidentManagement } from '../../hooks/useIncidentManagement';
+import { axiosClient } from '../../services/axiosClient'; // 👈 Funciona tanto en local como en PDN gracias a la URL base/proxy de axios
 import { IncidentSidebarLeft } from './components/IncidentSidebarLeft';
 import { IncidentSidebarRight } from './components/IncidentSidebarRight';
 import { IncidentFormContent } from './components/IncidentFormContent';
@@ -50,7 +51,7 @@ export default function IncidentManagementPage() {
     handleCloseIncident = () => {},
     handleTemplateSelect = () => {},
     fetchInitialData = async () => {},
-    handleClearServiceTimes = () => {}, // 👈 1. Añadido aquí para evitar el error de TypeScript
+    handleClearServiceTimes = () => {},
   } = management;
 
   // Cargar plantillas de notificación para la barra lateral
@@ -146,18 +147,10 @@ export default function IncidentManagementPage() {
         affectedServices: affectedServices && affectedServices.length > 0 ? affectedServices : []
       };
 
-      const response = await fetch('http://localhost:8080/v1/api/notifications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      // 🔍 Ayuda a depurar si el servidor rechaza algún campo en PDN o Local
+      console.log('Payload enviado a /v1/api/notifications:', payload);
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || 'Error en la respuesta del servidor al crear notificación.');
-      }
+      await axiosClient.post('/v1/api/notifications', payload);
 
       triggerToast('success', '¡Incidente / Notificación creado exitosamente!');
 
@@ -165,7 +158,13 @@ export default function IncidentManagementPage() {
         await fetchInitialData();
       }
     } catch (error: any) {
-      const errorMsg = error?.message || 'Error de conexión al crear la notificación.';
+      console.error('Detalle del error 400 del servidor:', error?.response?.data);
+      
+      const errorData = error?.response?.data;
+      const errorMsg = typeof errorData === 'string' 
+        ? errorData 
+        : (errorData?.message || errorData?.error || 'Error al crear la notificación.');
+        
       triggerToast('error', errorMsg);
       throw new Error(errorMsg);
     }
@@ -250,7 +249,7 @@ export default function IncidentManagementPage() {
         onSetCurrentStartTimeFirst={handleSetCurrentStartTimeFirst}
         onSetCurrentEndTimeFirst={handleSetCurrentEndTimeFirst}
         onMatchEndTimeWithStartTime={handleMatchEndTimeWithStartTime}
-        onClearServiceTimes={handleClearServiceTimes} // 👈 2. Prop pasada correctamente a la barra lateral
+        onClearServiceTimes={handleClearServiceTimes}
       />
 
       {activeToast && <Toast type={activeToast.type} message={activeToast.message} />}
