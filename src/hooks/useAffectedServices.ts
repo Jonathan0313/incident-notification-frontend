@@ -1,7 +1,12 @@
 import { useState } from 'react';
 
 export function useAffectedServices(initialServices: any[] = []) {
-  const [affectedServices, setAffectedServices] = useState<any[]>(initialServices);
+  // 💡 Si no hay servicios iniciales, arrancamos de una vez con una fila por defecto
+  const defaultInitial = initialServices.length > 0 ? initialServices : [
+    { nameService: '', status: 'OK', startTime: '', endTime: '' }
+  ];
+
+  const [affectedServices, setAffectedServices] = useState<any[]>(defaultInitial);
 
   const handleAddService = () => {
     setAffectedServices([...affectedServices, { nameService: '', status: 'OK', startTime: '', endTime: '' }]);

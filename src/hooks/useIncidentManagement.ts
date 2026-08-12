@@ -42,6 +42,41 @@ export function useIncidentManagement() {
 
   const { handleCopyTemplate } = useIncidentTemplate(formData, affectedServices, showToast);
 
+  // 🔄 REGLA AUTOMÁTICA DE LOS 3 ESCENARIOS PARA EL COMPONENTE AFECTADO
+  useEffect(() => {
+    if (!formData) return;
+
+    const solutionText = (formData.solution || formData.resolution || '').trim();
+    const currentComponent = (formData.affectedComponent || '').trim();
+    const lowerComponent = currentComponent.toLowerCase();
+
+    if (solutionText.length > 0 && (lowerComponent === 'en investigación' || currentComponent === '')) {
+      setFormData((prev: any) => ({
+        ...prev,
+        affectedComponent: 'N/A'
+      }));
+    } else if (solutionText.length === 0 && lowerComponent === 'n/a') {
+      setFormData((prev: any) => ({
+        ...prev,
+        affectedComponent: 'En investigación'
+      }));
+    }
+  }, [formData?.solution, formData?.resolution]);
+
+  // 🛡️ GARANTIZAR FILA POR DEFECTO AL CREAR
+  useEffect(() => {
+    if (isCreating && (!affectedServices || affectedServices.length === 0)) {
+      setAffectedServices([
+        {
+          serviceId: '',
+          status: 'Ok',
+          startTime: '',
+          endTime: ''
+        }
+      ]);
+    }
+  }, [isCreating]);
+
   // 🚀 Función para limpiar las horas (startTime y endTime) de todos los servicios afectados
   const handleClearServiceTimes = () => {
     console.log("¡Ejecutando limpieza de horas!", affectedServices);
@@ -113,7 +148,14 @@ export function useIncidentManagement() {
     setIsCreating(true);
     setSelectedIncident(null);
     setFormData(initialFormState);
-    setAffectedServices([]);
+    setAffectedServices([
+      {
+        serviceId: '',
+        status: 'Ok',
+        startTime: '',
+        endTime: ''
+      }
+    ]);
   };
 
   const handleSelectIncident = async (inc: any) => {
@@ -236,10 +278,8 @@ export function useIncidentManagement() {
         if (isCreating) {
           const responseData = await incidentService.create(payload);
 
-          // 1. Intentar extraer el ID si la API lo devuelve de alguna forma
           let realId = responseData?.id || responseData?.data?.id || responseData?.incidentId || responseData?.data?.incidentId;
 
-          // 2. Si la API devolvió vacío, buscamos el incidente por nombre en la lista de abiertos
           if (!realId) {
             const rawOpen = await incidentService.getOpen();
             const openList = Array.isArray(rawOpen) ? rawOpen : (rawOpen?.content || rawOpen?.data || []);
@@ -446,6 +486,6 @@ export function useIncidentManagement() {
     handleTemplateSelect, 
     fetchInitialData,
     ...affectedServicesManager,
-    handleClearServiceTimes // 👈 Colocado al final para asegurar que sobrescriba y exponga la función correctamente
+    handleClearServiceTimes
   };
 }

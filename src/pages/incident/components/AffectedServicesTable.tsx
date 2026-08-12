@@ -10,6 +10,7 @@ interface AffectedServicesTableProps {
   availableServices: any[];
   hasError?: boolean;
   errorMessage?: string;
+  filterType?: string;
   onAddService: () => void;
   onDeleteService: (index: number) => void;
   onServiceChange: (index: number, field: string, value: string) => void;
@@ -20,24 +21,24 @@ export function AffectedServicesTable({
   availableServices,
   hasError,
   errorMessage,
+  filterType,
   onAddService,
   onDeleteService,
   onServiceChange,
 }: AffectedServicesTableProps) {
   
-  // Asegurar que availableServices sea un arreglo plano y extraer su nombre correctamente
+  const isTemplateView = filterType === 'templates';
+
   const serviceList = Array.isArray(availableServices) ? availableServices : [];
 
-  // Ordenar los servicios disponibles alfabéticamente
   const sortedAvailableServices = [...serviceList].sort((a, b) => {
     const nameA = (typeof a === 'string' ? a : (a.name || a.nameService || a.serviceName || '')).toLowerCase();
     const nameB = (typeof b === 'string' ? b : (b.name || b.nameService || b.serviceName || '')).toLowerCase();
     return nameA.localeCompare(nameB);
   });
 
-  // Función para formatear automáticamente la fecha y hora mientras se escribe (DD/MM/YYYY HH:mm)
   const formatDateTimeInput = (value: string): string => {
-    const numbers = value.replace(/\D/g, '').slice(0, 12); // Máximo 12 dígitos (DDMMYYYYHHmm)
+    const numbers = value.replace(/\D/g, '').slice(0, 12);
     
     let formatted = '';
 
@@ -109,7 +110,6 @@ export function AffectedServicesTable({
                 return (
                   <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
                     
-                    {/* Estado con iconos */}
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '16px' }}>
                       {affectationUpper === 'OK' ? (
                         <span title="OK">✅</span>
@@ -120,10 +120,9 @@ export function AffectedServicesTable({
                       )}
                     </td>
 
-                    {/* Servicio */}
                     <td style={{ padding: '8px' }}>
                       <select 
-                        required
+                        required={!isTemplateView}
                         value={service.nameService || ''}
                         onChange={(e) => onServiceChange(index, 'nameService', e.target.value)}
                         style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', backgroundColor: '#fff' }}
@@ -146,7 +145,6 @@ export function AffectedServicesTable({
                       </select>
                     </td>
 
-                    {/* Tipo corregido a 'status' */}
                     <td style={{ padding: '8px' }}>
                       <select 
                         value={service.status || 'OK'}
@@ -159,11 +157,10 @@ export function AffectedServicesTable({
                       </select>
                     </td>
 
-                    {/* Inicio */}
                     <td style={{ padding: '8px' }}>
                       <input 
                         type="text" 
-                        required
+                        required={!isTemplateView}
                         placeholder="DD/MM/YYYY HH:mm"
                         maxLength={16}
                         value={service.startTime || ''}
@@ -175,7 +172,6 @@ export function AffectedServicesTable({
                       />
                     </td>
 
-                    {/* Fin */}
                     <td style={{ padding: '8px' }}>
                       <input 
                         type="text" 
@@ -190,7 +186,6 @@ export function AffectedServicesTable({
                       />
                     </td>
 
-                    {/* Botón Eliminar */}
                     <td style={{ padding: '8px', textAlign: 'center' }}>
                       <button
                         type="button"
