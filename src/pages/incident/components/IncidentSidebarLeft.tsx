@@ -19,6 +19,14 @@ export function IncidentSidebarLeft({
   onStartCreate,
   onFilterChange,
 }: IncidentSidebarLeftProps) {
+  
+  // Función auxiliar para extraer solo el valor después de la última barra '/'
+  const formatJiraId = (urlOrText: string) => {
+    if (!urlOrText) return '';
+    const parts = urlOrText.split('/');
+    return parts[parts.length - 1] || urlOrText;
+  };
+
   return (
     <div style={{ width: '260px', minWidth: '260px', backgroundColor: '#ffffff', borderRadius: '8px', padding: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       
@@ -63,7 +71,6 @@ export function IncidentSidebarLeft({
           <div>
             {incidents.map((item, index) => {
               const itemId = item.id || item.name;
-              // 🛡️ Buscamos primero name, luego title y si no, caemos en 'Sin nombre'
               const itemName = item.name || item.title || 'Sin nombre';
               const isSelected = !isCreating && selectedIncident?.id === item.id;
 
@@ -84,7 +91,12 @@ export function IncidentSidebarLeft({
                   {filterType === 'templates' ? (
                     <div style={{ fontSize: '11px', color: '#8b5cf6', marginTop: '4px' }}>📄 {item.typeTemplate || 'Plantilla'}</div>
                   ) : (
-                    item.jira && <div style={{ fontSize: '11px', color: '#2563eb', marginTop: '4px' }}>📌 {item.jira}</div>
+                    item.jira && (
+                      <div style={{ fontSize: '11px', color: '#2563eb', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>📌</span>
+                        <span>{formatJiraId(item.jira)}</span>
+                      </div>
+                    )
                   )}
                 </div>
               );
