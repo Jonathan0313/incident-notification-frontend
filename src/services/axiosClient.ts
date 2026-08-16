@@ -26,18 +26,32 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const status = error?.response?.status;
-
-    if (status === 401 || status === 403) {
-      console.warn('La sesión ha expirado o no es válida. Cerrando sesión...');
+    // Si no hay respuesta del servidor (Pérdida de red / Servidor caído)
+    if (!error.response) {
+      console.error('Sin conexión al servidor. Redirigiendo automáticamente...');
       
-      // Limpia todo el almacenamiento local para evitar datos corruptos o residuales
-      localStorage.clear();
+      // Limpiamos tokens/sesión
+      localStorage.removeItem('token');
+      localStorage.removeItem('token_expiration');
       sessionStorage.clear();
 
-      // Evita bucles si ya está en la vista de login o raíz
-      if (!window.location.pathname.includes('/login') && window.location.pathname !== '/') {
-        window.location.href = '/login';
+      // Ajuste: Validar explícitamente que no estemos intentando hacer login o ya en /login
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+      
+      if (!window.location.pathname.includes('/login') && !isLoginRequest) {
+        window.location.href = '/login?reason=network_error';
+      }
+      return Promise.reject(error);
+    }
+
+    // Errores 401 / 403 (Sesión expirada)
+    const status = error.response.status;
+    if (status === 401 || status === 403) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('token_expiration'); // <--- Añadido aquí
+      sessionStorage.clear();
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login?reason=session_expired';
       }
     }
 

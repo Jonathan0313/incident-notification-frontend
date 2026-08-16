@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import IncidentManagementPage from './pages/incident/IncidentManagementPage';
 import ServiceManagementPage from './pages/ServiceManagementPage';
@@ -7,22 +7,59 @@ import { LoginPage } from './pages/LoginPage';
 import { authService } from './services/authService';
 import './index.css';
 
+
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   
+  // Estado para mostrar el tiempo restante en pantalla
+  const [timeLeftFormatted, setTimeLeftFormatted] = useState<string>('');
+
   // Estados locales para la vista de cambio de contraseña
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  // Validación periódica del tiempo de expiración y cálculo del timer
+  useEffect(() => {
+    const checkSession = () => {
+      const expirationTime = localStorage.getItem('token_expiration');
+      if (!expirationTime) return;
+
+      const currentTime = new Date().getTime();
+      const timeLeft = parseInt(expirationTime) - currentTime;
+
+      if (timeLeft <= 0) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('token_expiration');
+        sessionStorage.clear();
+        setToken(null);
+        setTimeLeftFormatted('');
+      } else {
+        // Calcular horas, minutos y segundos restantes
+        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+        // Formatear a texto (ej: "01:59:59" o "01:59" si son pocos minutos)
+        const formatted = `${hours > 0 ? hours + 'h ' : ''}${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
+        setTimeLeftFormatted(formatted);
+      }
+    };
+
+    // Ejecutar inmediatamente y luego cada 1 segundo para que el reloj sea fluido
+    checkSession();
+    const interval = setInterval(checkSession, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLoginSuccess = (jwtToken: string) => {
-    localStorage.setItem('token', jwtToken);
     setToken(jwtToken);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('token_expiration');
     setToken(null);
   };
 
@@ -56,6 +93,12 @@ function App() {
             <span>Portal de Incidentes & Monitoreo</span>
           </div>
           <div className="navbar-links" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            {/* TIMER DE SESIÓN VISIBLE */}
+            {timeLeftFormatted && (
+              <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.15)', padding: '4px 8px', borderRadius: '4px', color: '#fef08a' }} title="Tiempo restante de sesión">
+                ⏱️ {timeLeftFormatted}
+              </span>
+            )}
             <Link to="/incidents">Gestión de Incidentes</Link>
             <Link to="/services">Gestión de Servicios</Link>
             <Link to="/templates">Gestión de Templates</Link>

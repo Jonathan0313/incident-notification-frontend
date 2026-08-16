@@ -4,6 +4,15 @@ import { axiosClient } from './axiosClient';
 export const authService = {
   login: async (credentials: { username: string; password: string }) => {
     const response = await axiosClient.post('/v1/api/auth/login', credentials);
+    
+    // 1. Calculamos las 10 horas a partir del momento exacto del login exitoso
+    const expiresInMs = 10 * 60 * 60 * 1000; // 10 horas en milisegundos
+    const expirationTime = new Date().getTime() + expiresInMs;
+
+    // 2. Guardamos el token y la fecha de expiración en localStorage
+    localStorage.setItem('token', response.data.token);
+    localStorage.setItem('token_expiration', expirationTime.toString());
+
     return response.data; // Retorna el objeto con { token: "..." }
   },
   
