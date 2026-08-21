@@ -7,6 +7,7 @@ import TokenManagementPage from './pages/TokenManagementPage';
 import FormManagementPage from './pages/FormManagementPage'; // <-- NUEVO: Importar la página de formularios
 import { LoginPage } from './pages/LoginPage';
 import { authService } from './services/authService';
+import PipelineManagementPage from './pages/PipelineManagementPage';
 import './index.css';
 
 
@@ -106,6 +107,7 @@ function App() {
             <Link to="/templates">Gestión de Templates</Link>
             <Link to="/tokens" style={{ color: '#fde047' }}>Gestión de Tokens</Link>
             <Link to="/forms" style={{ color: '#67e8f9' }}>Gestión de Formularios</Link> {/* <-- NUEVO: Link de Formularios */}
+            <Link to="/pipelines" style={{ color: '#86efac' }}>Gestión de Pipelines</Link>
             <Link to="/security" style={{ color: '#93c5fd' }}>Mi Contraseña</Link>
             <button 
               onClick={handleLogout}
@@ -124,6 +126,7 @@ function App() {
             <Route path="/services" element={<ServiceManagementPage />} />
             <Route path="/templates" element={<TemplateManagementPage />} />
             <Route path="/tokens" element={<TokenManagementPage />} />
+            <Route path="/pipelines" element={<PipelineManagementPage />} />
             <Route path="/forms" element={<FormManagementPage />} /> {/* <-- NUEVO: Ruta de Formularios */}
             
             {/* Ruta específica dentro de la app para gestionar la contraseña propia */}
