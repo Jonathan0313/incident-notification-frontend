@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-ro
 import IncidentManagementPage from './pages/incident/IncidentManagementPage';
 import ServiceManagementPage from './pages/ServiceManagementPage';
 import TemplateManagementPage from "./pages/TemplateManagementPage";
+import TokenManagementPage from './pages/TokenManagementPage'; // <-- NUEVO: Importar la página de tokens
 import { LoginPage } from './pages/LoginPage';
 import { authService } from './services/authService';
 import './index.css';
@@ -102,6 +103,7 @@ function App() {
             <Link to="/incidents">Gestión de Incidentes</Link>
             <Link to="/services">Gestión de Servicios</Link>
             <Link to="/templates">Gestión de Templates</Link>
+            <Link to="/tokens" style={{ color: '#fde047' }}>Gestión de Tokens</Link> {/* <-- NUEVO: Link de Tokens */}
             <Link to="/security" style={{ color: '#93c5fd' }}>Mi Contraseña</Link>
             <button 
               onClick={handleLogout}
@@ -119,6 +121,7 @@ function App() {
             <Route path="/incidents" element={<IncidentManagementPage />} />
             <Route path="/services" element={<ServiceManagementPage />} />
             <Route path="/templates" element={<TemplateManagementPage />} />
+            <Route path="/tokens" element={<TokenManagementPage />} /> {/* <-- NUEVO: Ruta de Tokens */}
             
             {/* Ruta específica dentro de la app para gestionar la contraseña propia */}
             <Route path="/security" element={
