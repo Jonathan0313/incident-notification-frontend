@@ -14,10 +14,7 @@ const getAuthHeaders = () => {
 
 export interface PipelineDto {
   services: string;
-  pipelineId: string;
-  variables: Record<string, any>;
-  enabled: string;
-  disabled: string;
+  variables: any;
 }
 
 export const pipelineService = {
@@ -26,25 +23,22 @@ export const pipelineService = {
     return response.data;
   },
 
-  getPipelineByServices: async (services: string): Promise<PipelineDto[]> => {
-    const response = await axios.get(`${API_URL}/pipelines/${services}`, getAuthHeaders());
-    return response.data;
-  },
-
-  // Ajustado con transformRequest para asegurar que viaje estrictamente como un arreglo JSON plano
   createPipeline: async (pipelines: PipelineDto[]): Promise<any> => {
     const auth = getAuthHeaders();
-    const response = await axios.post(`${API_URL}/pipelines`, pipelines, {
+    const payload = Array.isArray(pipelines) ? pipelines : [pipelines];
+
+    const response = await axios.post(`${API_URL}/pipelines`, payload, {
       headers: auth.headers,
       transformRequest: [(data) => JSON.stringify(data)]
     });
     return response.data;
   },
 
-  // Ajustado con transformRequest para asegurar que viaje estrictamente como un arreglo JSON plano
   updatePipeline: async (services: string, pipelines: PipelineDto[]): Promise<void> => {
     const auth = getAuthHeaders();
-    await axios.put(`${API_URL}/pipelines/${services}`, pipelines, {
+    const payload = Array.isArray(pipelines) ? pipelines : [pipelines];
+
+    await axios.put(`${API_URL}/pipelines/${services}`, payload, {
       headers: auth.headers,
       transformRequest: [(data) => JSON.stringify(data)]
     });

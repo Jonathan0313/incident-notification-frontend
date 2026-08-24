@@ -20,6 +20,10 @@ export interface FormDto {
   organization: string;
   project: string;
   variables: string[];
+  // Nuevos campos opcionales para la activación dinámica
+  activationParamName?: string;
+  enableValue?: string | number;
+  disableValue?: string | number;
 }
 
 export const formService = {

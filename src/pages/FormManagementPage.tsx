@@ -5,13 +5,19 @@ export default function FormManagementPage() {
   const [forms, setForms] = useState<FormDto[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados del formulario
+  // Estados del formulario base
   const [pipelineId, setPipelineId] = useState('');
   const [name, setName] = useState('');
   const [platform, setPlatform] = useState('');
   const [organization, setOrganization] = useState('');
   const [project, setProject] = useState('');
-  const [variablesInput, setVariablesInput] = useState(''); // Se ingresan separadas por comas
+  const [variablesInput, setVariablesInput] = useState(''); 
+
+  // Nuevos estados para la configuración de activación dinámica
+  const [activationParamName, setActivationParamName] = useState('');
+  const [enableValue, setEnableValue] = useState('');
+  const [disableValue, setDisableValue] = useState('');
+
   const [isEditing, setIsEditing] = useState(false);
 
   // Estados para notificaciones Toast
@@ -56,7 +62,6 @@ export default function FormManagementPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Convertir el texto de variables separadas por comas en un List<String> (Array)
     const variablesArray = variablesInput
       ? variablesInput.split(',').map((v) => v.trim()).filter(v => v.length > 0)
       : [];
@@ -67,7 +72,10 @@ export default function FormManagementPage() {
       platform,
       organization,
       project,
-      variables: variablesArray
+      variables: variablesArray,
+      activationParamName: activationParamName || undefined,
+      enableValue: enableValue || undefined,
+      disableValue: disableValue || undefined
     };
 
     try {
@@ -93,6 +101,9 @@ export default function FormManagementPage() {
     setOrganization(form.organization);
     setProject(form.project);
     setVariablesInput(form.variables ? form.variables.join(', ') : '');
+    setActivationParamName(form.activationParamName || '');
+    setEnableValue(form.enableValue ? String(form.enableValue) : '');
+    setDisableValue(form.disableValue ? String(form.disableValue) : '');
     setIsEditing(true);
   };
 
@@ -103,6 +114,9 @@ export default function FormManagementPage() {
     setOrganization('');
     setProject('');
     setVariablesInput('');
+    setActivationParamName('');
+    setEnableValue('');
+    setDisableValue('');
     setIsEditing(false);
   };
 
@@ -126,7 +140,7 @@ export default function FormManagementPage() {
     <div style={{ padding: '30px', maxWidth: '1400px', margin: '0 auto' }}>
       <h2 style={{ marginBottom: '20px' }}>Gestión de Formularios y Pipelines</h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '30px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: '30px', alignItems: 'start' }}>
         
         {/* IZQUIERDA: Formulario */}
         <div style={{ background: 'white', padding: '20px', borderRadius: '8px', border: '1px solid #d1d5db', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -195,7 +209,7 @@ export default function FormManagementPage() {
               />
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Variables (separadas por comas)</label>
               <input 
                 type="text" 
@@ -204,6 +218,47 @@ export default function FormManagementPage() {
                 onChange={(e) => setVariablesInput(e.target.value)} 
                 style={{ width: '100%', padding: '8px', boxSizing: 'border-box', border: '1px solid #d1d5db', borderRadius: '4px' }}
               />
+            </div>
+
+            {/* SECCIÓN DE CONFIGURACIÓN DE ACTIVACIÓN DINÁMICA */}
+            <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px' }}>
+              <span style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '8px' }}>
+                ⚙️ Configuración de Activación (Opcional)
+              </span>
+
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', marginBottom: '2px' }}>Nombre Parámetro (Ej: active, show)</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej: active" 
+                  value={activationParamName}
+                  onChange={(e) => setActivationParamName(e.target.value)} 
+                  style={{ width: '100%', padding: '6px', boxSizing: 'border-box', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '12px' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', marginBottom: '2px' }}>Valor Habilitar (Ej: 1 / true)</label>
+                  <input 
+                    type="text" 
+                    placeholder="1 o true" 
+                    value={enableValue}
+                    onChange={(e) => setEnableValue(e.target.value)} 
+                    style={{ width: '100%', padding: '6px', boxSizing: 'border-box', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '12px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', marginBottom: '2px' }}>Valor Inhabilitar (Ej: 0 / false)</label>
+                  <input 
+                    type="text" 
+                    placeholder="0 o false" 
+                    value={disableValue}
+                    onChange={(e) => setDisableValue(e.target.value)} 
+                    style={{ width: '100%', padding: '6px', boxSizing: 'border-box', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '12px' }}
+                  />
+                </div>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
