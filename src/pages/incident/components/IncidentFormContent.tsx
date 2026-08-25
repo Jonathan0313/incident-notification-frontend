@@ -47,6 +47,11 @@ export function IncidentFormContent({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isTemplateView = filterType === 'templates'; // 👈 Identificar si es plantilla
 
+  const impactTemplates = templates.filter((t: any) => {
+    const val = (t.typeTemplate || t.type || t.Tipo || '').trim().toLowerCase();
+    return val === 'impacto' || val === 'impact' || val === 'impactousuarios';
+  });
+
   const descriptionTemplates = templates.filter((t: any) => {
     const val = (t.typeTemplate || t.type || t.Tipo || '').trim().toLowerCase();
     return val === 'descripción' || val === 'descripcion' || val === 'description';
@@ -169,8 +174,29 @@ export function IncidentFormContent({
           />
         </div>
 
+        {/* IMPACTO (Con su respectivo selector de plantillas en la posición superior) */}
         <div>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>Impacto: *</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Impacto: *</label>
+            <select 
+              onChange={(e) => { 
+                const templateName = e.target.value;
+                if (templateName) {
+                  const selectedObj = impactTemplates.find(t => t.name === templateName);
+                  const textToFill = selectedObj?.messageTemplate || selectedObj?.description || selectedObj?.content || selectedObj?.text || templateName;
+                  
+                  setFormData({ ...formData, impact: textToFill });
+                  e.target.value = ''; 
+                }
+              }}
+              style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', cursor: 'pointer' }}
+            >
+              <option value="">📄 Cargar plantilla...</option>
+              {impactTemplates.map((t, idx) => (
+                <option key={idx} value={t.name}>{t.name}</option>
+              ))}
+            </select>
+          </div>
           <input 
             type="text" 
             required={!isTemplateView} // 👈 Opcional si es plantilla

@@ -70,8 +70,9 @@ export function TemplateForm({ selectedTemplate, setSelectedTemplate, refreshTem
             required
             style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '4px', boxSizing: 'border-box', backgroundColor: '#fff' }}
           >
-            <option value="Descripción">Descripción</option>
             <option value="Avances">Avances</option>
+            <option value="Descripción">Descripción</option>
+            <option value="Impacto">Impacto</option>
             <option value="Solución">Solución</option>
           </select>
         </div>
