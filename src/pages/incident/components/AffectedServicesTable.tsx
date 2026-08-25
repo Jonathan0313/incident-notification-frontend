@@ -1,3 +1,5 @@
+import { OrchestratorPipeline } from '../../OrchestratorPipeline';
+
 interface AffectedService {
   nameService: string;
   status: string;
@@ -14,6 +16,7 @@ interface AffectedServicesTableProps {
   onAddService: () => void;
   onDeleteService: (index: number) => void;
   onServiceChange: (index: number, field: string, value: string) => void;
+  showToast?: (type: 'success' | 'error' | 'warning', message: string) => void;
 }
 
 export function AffectedServicesTable({
@@ -25,10 +28,10 @@ export function AffectedServicesTable({
   onAddService,
   onDeleteService,
   onServiceChange,
+  showToast,
 }: AffectedServicesTableProps) {
   
   const isTemplateView = filterType === 'templates';
-
   const serviceList = Array.isArray(availableServices) ? availableServices : [];
 
   const sortedAvailableServices = [...serviceList].sort((a, b) => {
@@ -39,24 +42,13 @@ export function AffectedServicesTable({
 
   const formatDateTimeInput = (value: string): string => {
     const numbers = value.replace(/\D/g, '').slice(0, 12);
-    
     let formatted = '';
 
-    if (numbers.length > 0) {
-      formatted += numbers.substring(0, 2);
-    }
-    if (numbers.length >= 3) {
-      formatted += '/' + numbers.substring(2, 4);
-    }
-    if (numbers.length >= 5) {
-      formatted += '/' + numbers.substring(4, 8);
-    }
-    if (numbers.length >= 9) {
-      formatted += ' ' + numbers.substring(8, 10);
-    }
-    if (numbers.length >= 11) {
-      formatted += ':' + numbers.substring(10, 12);
-    }
+    if (numbers.length > 0) formatted += numbers.substring(0, 2);
+    if (numbers.length >= 3) formatted += '/' + numbers.substring(2, 4);
+    if (numbers.length >= 5) formatted += '/' + numbers.substring(4, 8);
+    if (numbers.length >= 9) formatted += ' ' + numbers.substring(8, 10);
+    if (numbers.length >= 11) formatted += ':' + numbers.substring(10, 12);
 
     return formatted;
   };
@@ -91,7 +83,7 @@ export function AffectedServicesTable({
                 <th style={{ padding: '8px', width: '130px' }}>TIPO</th>
                 <th style={{ padding: '8px', width: '180px' }}>INICIO *</th>
                 <th style={{ padding: '8px', width: '180px' }}>FIN</th>
-                <th style={{ padding: '8px', width: '50px', textAlign: 'center' }}></th>
+                <th style={{ padding: '8px', width: '90px', textAlign: 'center' }}>ACCIONES</th>
               </tr>
             </thead>
             <tbody>
@@ -187,26 +179,34 @@ export function AffectedServicesTable({
                     </td>
 
                     <td style={{ padding: '8px', textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => onDeleteService(index)}
-                        style={{
-                          backgroundColor: '#ef4444',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          width: '32px',
-                          height: '32px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold',
-                          fontSize: '18px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        -
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        <OrchestratorPipeline 
+                          serviceName={service.nameService || ''} 
+                          showToast={showToast} 
+                          iconOnly={true} 
+                        />
+                        <button
+                          type="button"
+                          onClick={() => onDeleteService(index)}
+                          style={{
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            width: '32px',
+                            height: '32px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '18px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title="Eliminar afectación"
+                        >
+                          -
+                        </button>
+                      </div>
                     </td>
 
                   </tr>
