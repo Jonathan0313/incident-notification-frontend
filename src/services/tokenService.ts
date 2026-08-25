@@ -1,17 +1,5 @@
 // src/services/tokenService.ts
-import axios from 'axios';
-
-const API_URL = 'http://localhost:8080/v1/api';
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-  };
-};
+import { axiosClient } from './axiosClient';
 
 // Definimos la interfaz exacta que coincide con tu payload
 export interface TokenPayload {
@@ -23,21 +11,21 @@ export interface TokenPayload {
 
 export const tokenService = {
   getTokens: async () => {
-  const response = await axios.get(`${API_URL}/tokens`, getAuthHeaders());
-  return response.data;
-},
+    const response = await axiosClient.get('/v1/api/tokens');
+    return response.data;
+  },
 
   createToken: async (tokenData: TokenPayload) => {
-    const response = await axios.post(`${API_URL}/tokens`, tokenData, getAuthHeaders());
+    const response = await axiosClient.post('/v1/api/tokens', tokenData);
     return response.data;
   },
 
   updateToken: async (tokenData: TokenPayload) => {
-    const response = await axios.put(`${API_URL}/tokens`, tokenData, getAuthHeaders());
+    const response = await axiosClient.put('/v1/api/tokens', tokenData);
     return response.data;
   },
 
   deleteToken: async (platform: string, user: string) => {
-    await axios.delete(`${API_URL}/tokens/${platform}/${user}`, getAuthHeaders());
+    await axiosClient.delete(`/v1/api/tokens/${platform}/${user}`);
   }
 };
