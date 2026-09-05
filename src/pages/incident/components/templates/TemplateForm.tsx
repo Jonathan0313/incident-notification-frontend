@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { axiosClient } from '../../../../services/axiosClient';
 import type { Template } from '../../../TemplateManagementPage';
+import { templateService } from '../../../../services/templateService'; // Ajusta la ruta según la ubicación de tu componente
 
 interface TemplateFormProps {
   selectedTemplate: Template | null;
@@ -33,10 +33,10 @@ export function TemplateForm({ selectedTemplate, setSelectedTemplate, refreshTem
     e.preventDefault();
     try {
       if (selectedTemplate && selectedTemplate.id) {
-        await axiosClient.put(`/v1/api/templates/${selectedTemplate.id}`, formData);
+        await templateService.update(selectedTemplate.id, formData);
         showToast('success', 'Plantilla actualizada con éxito');
       } else {
-        await axiosClient.post('/v1/api/templates', formData);
+        await templateService.create(formData);
         showToast('success', 'Plantilla creada con éxito');
       }
       refreshTemplates();

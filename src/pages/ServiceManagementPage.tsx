@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { axiosClient } from '../services/axiosClient';
+import { serviceManagementService } from '../services/serviceService'; // <--- Usar el servicio centralizado
 import { ServiceForm } from './incident/components/services/ServiceForm';
 import { ServiceTable } from './incident/components/services/ServiceTable';
 import { Toast } from './incident/components/ui/Toast';
@@ -27,8 +27,8 @@ export default function ServiceManagementPage() {
   const fetchAllServices = async () => {
     try {
       setLoading(true);
-      const response = await axiosClient.get<Service[]>('/v1/api/services/all');
-      setServices(response.data);
+      const data = await serviceManagementService.getAll(); // <--- Llamada limpia
+      setServices(data);
     } catch (error: any) {
       showToast('error', error?.response?.data?.message || 'Error al cargar los servicios');
     } finally {

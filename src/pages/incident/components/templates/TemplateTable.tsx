@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { axiosClient } from '../../../../services/axiosClient';
+import { templateService } from '../../../../services/templateService';
 import type { Template } from '../../../TemplateManagementPage';
 
 interface TemplateTableProps {
@@ -9,9 +9,10 @@ interface TemplateTableProps {
   refreshTemplates: () => void;
   setTemplates: (templates: Template[]) => void;
   showToast: (type: 'success' | 'error', message: string) => void;
+  onDelete: (template: Template) => void;
 }
 
-export function TemplateTable({ templates, loading, onEdit, refreshTemplates, setTemplates, showToast }: TemplateTableProps) {
+export function TemplateTable({ templates, loading, onEdit, refreshTemplates, setTemplates, showToast, onDelete }: TemplateTableProps) {
   const [searchName, setSearchName] = useState<string>('');
 
   const handleSearchByName = async (e: React.FormEvent) => {
@@ -22,8 +23,8 @@ export function TemplateTable({ templates, loading, onEdit, refreshTemplates, se
     }
 
     try {
-      const response = await axiosClient.get<Template[]>('/v1/api/templates');
-      const filtered = response.data.filter(t => 
+      const data = await templateService.getAll();
+      const filtered = (data as Template[]).filter(t => 
         t.name.toLowerCase().includes(searchName.trim().toLowerCase()) ||
         t.typeTemplate.toLowerCase().includes(searchName.trim().toLowerCase())
       );
@@ -32,21 +33,6 @@ export function TemplateTable({ templates, loading, onEdit, refreshTemplates, se
       console.error('Error al buscar la plantilla:', error);
       setTemplates([]);
       showToast('error', 'Error al buscar la plantilla');
-    }
-  };
-
-  const handleDelete = async (id?: string) => {
-    if (!id) return;
-    if (window.confirm('¿Estás seguro de eliminar esta plantilla?')) {
-      try {
-        await axiosClient.delete(`/v1/api/templates/${id}`);
-        showToast('success', 'Plantilla eliminada con éxito');
-        refreshTemplates();
-      } catch (error: any) {
-        console.error('Error al eliminar la plantilla:', error);
-        const backendMessage = error?.response?.data?.message || error?.message || 'No se pudo eliminar la plantilla';
-        showToast('error', backendMessage);
-      }
     }
   };
 
@@ -106,7 +92,7 @@ export function TemplateTable({ templates, loading, onEdit, refreshTemplates, se
                     Editar
                   </button>
                   <button 
-                    onClick={() => handleDelete(tpl.id)}
+                    onClick={() => onDelete(tpl)}
                     style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
                     Eliminar
                   </button>

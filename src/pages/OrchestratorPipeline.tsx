@@ -11,16 +11,15 @@ export function OrchestratorPipeline({ serviceName, showToast }: OrchestratorPip
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionStatus, setActionStatus] = useState('1');
+  const [progressMessages, setProgressMessages] = useState<string[]>([]);
   
   const [toastNotification, setToastNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Ocultar la notificación automáticamente tras 4 segundos
   useEffect(() => {
     if (toastNotification) {
       const timer = setTimeout(() => {
         setToastNotification(null);
       }, 4000);
-
       return () => clearTimeout(timer);
     }
   }, [toastNotification]);
@@ -28,6 +27,7 @@ export function OrchestratorPipeline({ serviceName, showToast }: OrchestratorPip
   const handleOpenClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setToastNotification(null);
+    setProgressMessages([]);
 
     if (!serviceName) {
       const msg = 'Debes seleccionar un servicio antes de ejecutar el orquestador.';
@@ -65,39 +65,121 @@ export function OrchestratorPipeline({ serviceName, showToast }: OrchestratorPip
 
   const handleConfirmTrigger = async () => {
     setToastNotification(null);
+    setLoading(true);
+    setProgressMessages(['Iniciando conexión con el orquestador...']);
+
+    let isCompletedSuccessfully = false;
+
     try {
-      setLoading(true);
+      const response = await orchestratorPipelineService.streamPipelineProgress(
+        serviceName, 
+        actionStatus
+      );
 
-      const payload = {
-        serviceName: serviceName,
-        status: actionStatus 
-      };
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Error de servidor (Status: ${response.status})`);
+      }
 
-      await orchestratorPipelineService.triggerPipeline(payload);
+      if (response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedText = '';
+
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              isCompletedSuccessfully = true;
+              break;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            accumulatedText += chunk;
+
+            const lines = accumulatedText.split('\n');
+            accumulatedText = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+
+              let message = trimmed;
+              if (message.startsWith('data:')) {
+                message = message.replace('data:', '').trim();
+              }
+              if (message.startsWith('"') && message.endsWith('"')) {
+                message = message.slice(1, -1);
+              }
+
+              if (message === 'COMPLETE') {
+                isCompletedSuccessfully = true;
+                // Cancelamos el lector explícitamente para evitar que el navegador lance el falso error de red chunked
+                await reader.cancel();
+                break;
+              }
+
+              if (message.startsWith('Error:')) {
+                await reader.cancel();
+                throw new Error(message.replace('Error:', '').trim());
+              } else if (message) {
+                setProgressMessages((prev) => [...prev, message]);
+              }
+            }
+          }
+        } catch (streamError: any) {
+          if (
+            isCompletedSuccessfully ||
+            (streamError?.name === 'TypeError' && 
+              (streamError?.message?.includes('network error') || 
+               streamError?.message?.includes('Failed to fetch') ||
+               streamError?.message?.includes('ERR_INCOMPLETE_CHUNKED_ENCODING')))
+          ) {
+            isCompletedSuccessfully = true;
+          } else {
+            throw streamError;
+          }
+        }
+      }
 
       const actionText = actionStatus === '1' ? 'Activado' : 'Inactivado';
       const successMsg = `Pipeline ejecutado con éxito: ${serviceName} - ${actionText}`;
-
+      
       if (showToast) {
         showToast('success', successMsg);
       } else {
         setToastNotification({ type: 'success', message: successMsg });
       }
-      setIsModalOpen(false);
-    } catch (error: any) {
-      console.error('Error al ejecutar el pipeline:', error);
       
-      const backendData = error?.response?.data;
-      const backendMessage = typeof backendData === 'string' 
-        ? backendData 
-        : (backendData?.message || backendData?.error || backendData?.msg);
-        
-      const errorMsg = backendMessage || error?.message || 'Error al ejecutar el flujo del pipeline';
+      setIsModalOpen(false);
 
-      if (showToast) {
-        showToast('error', errorMsg);
+    } catch (error: any) {
+      const errorMessageText = error?.message || '';
+      const isChunkedEncodingError = 
+        errorMessageText.includes('ERR_INCOMPLETE_CHUNKED_ENCODING') || 
+        errorMessageText.includes('Failed to fetch') ||
+        error?.name === 'TypeError';
+
+      if (!isChunkedEncodingError) {
+        console.error('Error al ejecutar el pipeline:', error);
+      }
+      
+      if (!isCompletedSuccessfully && !isChunkedEncodingError) {
+        const errorMsg = errorMessageText || 'Error al ejecutar el flujo del pipeline';
+        if (showToast) {
+          showToast('error', errorMsg);
+        } else {
+          setToastNotification({ type: 'error', message: errorMsg });
+        }
       } else {
-        setToastNotification({ type: 'error', message: errorMsg });
+        const actionText = actionStatus === '1' ? 'Activado' : 'Inactivado';
+        const successMsg = `Pipeline ejecutado con éxito: ${serviceName} - ${actionText}`;
+        if (showToast) {
+          showToast('success', successMsg);
+        } else {
+          setToastNotification({ type: 'success', message: successMsg });
+        }
+        setIsModalOpen(false);
       }
     } finally {
       setLoading(false);
@@ -146,7 +228,7 @@ export function OrchestratorPipeline({ serviceName, showToast }: OrchestratorPip
             backgroundColor: 'white',
             padding: '24px',
             borderRadius: '8px',
-            width: '360px',
+            width: '420px',
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
             textAlign: 'left'
           }}>
@@ -164,6 +246,7 @@ export function OrchestratorPipeline({ serviceName, showToast }: OrchestratorPip
               <select
                 value={actionStatus}
                 onChange={(e) => setActionStatus(e.target.value)}
+                disabled={loading}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -180,6 +263,33 @@ export function OrchestratorPipeline({ serviceName, showToast }: OrchestratorPip
               </select>
             </div>
 
+            {/* Cuadro de historial de progreso en formato lista con scroll */}
+            {progressMessages.length > 0 && (
+              <div style={{
+                marginBottom: '20px',
+                padding: '10px 12px',
+                backgroundColor: '#f0f9ff',
+                borderRadius: '6px',
+                border: '1px solid #bae6fd',
+                fontSize: '12px',
+                color: '#0369a1',
+                maxHeight: '150px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                {progressMessages.map((msg, index) => (
+                  <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', wordBreak: 'break-word' }}>
+                    <span>{index === progressMessages.length - 1 && loading ? '⏳' : '•'}</span>
+                    <span style={{ fontWeight: index === progressMessages.length - 1 ? 600 : 400 }}>
+                      {msg}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button
                 type="button"
@@ -193,7 +303,7 @@ export function OrchestratorPipeline({ serviceName, showToast }: OrchestratorPip
                   padding: '8px 16px',
                   fontSize: '13px',
                   fontWeight: 'bold',
-                  cursor: 'pointer'
+                  cursor: loading ? 'not-allowed' : 'pointer'
                 }}
               >
                 Cancelar
@@ -220,7 +330,7 @@ export function OrchestratorPipeline({ serviceName, showToast }: OrchestratorPip
         </div>
       )}
 
-      {/* Notificación Toast flotante que desaparece en 4s */}
+      {/* Notificación Toast flotante */}
       {toastNotification && (
         <div style={{
           position: 'fixed',

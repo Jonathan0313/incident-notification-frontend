@@ -4,12 +4,11 @@ import IncidentManagementPage from './pages/incident/IncidentManagementPage';
 import ServiceManagementPage from './pages/ServiceManagementPage';
 import TemplateManagementPage from "./pages/TemplateManagementPage";
 import TokenManagementPage from './pages/TokenManagementPage';
-import FormManagementPage from './pages/FormManagementPage'; // <-- NUEVO: Importar la página de formularios
+import FormManagementPage from './pages/FormManagementPage';
 import { LoginPage } from './pages/LoginPage';
 import { authService } from './services/authService';
 import PipelineManagementPage from './pages/PipelineManagementPage';
 import './index.css';
-
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -39,18 +38,15 @@ function App() {
         setToken(null);
         setTimeLeftFormatted('');
       } else {
-        // Calcular horas, minutos y segundos restantes
         const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
-        // Formatear a texto (ej: "01:59:59" o "01:59" si son pocos minutos)
         const formatted = `${hours > 0 ? hours + 'h ' : ''}${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
         setTimeLeftFormatted(formatted);
       }
     };
 
-    // Ejecutar inmediatamente y luego cada 1 segundo para que el reloj sea fluido
     checkSession();
     const interval = setInterval(checkSession, 1000);
     return () => clearInterval(interval);
@@ -76,11 +72,13 @@ function App() {
       setCurrentPassword('');
       setNewPassword('');
     } catch (err: any) {
-      setError(err?.response?.data || 'Error al actualizar la contraseña');
+      // Solución: Extraer la propiedad 'message' de la respuesta del backend de forma segura
+      const errorData = err?.response?.data;
+      const errorMsg = typeof errorData === 'object' && errorData !== null ? errorData.message : errorData;
+      setError(errorMsg || 'Error al actualizar la contraseña');
     }
   };
 
-  // Si no hay token, muestra obligatoriamente el componente de Login
   if (!token) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
@@ -96,7 +94,6 @@ function App() {
             <span>Portal de Incidentes & Monitoreo</span>
           </div>
           <div className="navbar-links" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {/* TIMER DE SESIÓN VISIBLE */}
             {timeLeftFormatted && (
               <span style={{ fontSize: '12px', background: 'rgba(255,255,255,0.15)', padding: '4px 8px', borderRadius: '4px', color: '#fef08a' }} title="Tiempo restante de sesión">
                 ⏱️ {timeLeftFormatted}
@@ -106,7 +103,7 @@ function App() {
             <Link to="/services">Gestión de Servicios</Link>
             <Link to="/templates">Gestión de Templates</Link>
             <Link to="/tokens" style={{ color: '#fde047' }}>Gestión de Tokens</Link>
-            <Link to="/forms" style={{ color: '#67e8f9' }}>Gestión de Formularios</Link> {/* <-- NUEVO: Link de Formularios */}
+            <Link to="/forms" style={{ color: '#67e8f9' }}>Gestión de Formularios</Link>
             <Link to="/pipelines" style={{ color: '#86efac' }}>Gestión de Pipelines</Link>
             <Link to="/security" style={{ color: '#93c5fd' }}>Mi Contraseña</Link>
             <button 
@@ -127,9 +124,8 @@ function App() {
             <Route path="/templates" element={<TemplateManagementPage />} />
             <Route path="/tokens" element={<TokenManagementPage />} />
             <Route path="/pipelines" element={<PipelineManagementPage />} />
-            <Route path="/forms" element={<FormManagementPage />} /> {/* <-- NUEVO: Ruta de Formularios */}
+            <Route path="/forms" element={<FormManagementPage />} />
             
-            {/* Ruta específica dentro de la app para gestionar la contraseña propia */}
             <Route path="/security" element={
               <div style={{ padding: '40px', maxWidth: '400px', margin: '0 auto', background: 'white', borderRadius: '8px', border: '1px solid #d1d5db' }}>
                 <h3>Cambiar Contraseña</h3>
