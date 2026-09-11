@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import IncidentManagementPage from './pages/incident/IncidentManagementPage';
+import Boquilla from './pages/boquilla';
 import ServiceManagementPage from './pages/ServiceManagementPage';
 import TemplateManagementPage from "./pages/TemplateManagementPage";
 import TokenManagementPage from './pages/TokenManagementPage';
@@ -100,6 +101,7 @@ function App() {
               </span>
             )}
             <Link to="/incidents">Gestión de Incidentes</Link>
+            <Link to="/boquilla">Boquilla</Link>
             <Link to="/services">Gestión de Servicios</Link>
             <Link to="/templates">Gestión de Templates</Link>
             <Link to="/tokens" style={{ color: '#fde047' }}>Gestión de Tokens</Link>
@@ -120,6 +122,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/incidents" replace />} />
             <Route path="/incidents" element={<IncidentManagementPage />} />
+            <Route path="/boquilla" element={<Boquilla />} />
             <Route path="/services" element={<ServiceManagementPage />} />
             <Route path="/templates" element={<TemplateManagementPage />} />
             <Route path="/tokens" element={<TokenManagementPage />} />
